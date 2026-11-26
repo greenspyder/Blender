@@ -1,0 +1,139 @@
+[gd_scene load_steps=11 format=3]
+
+[ext_resource type="Script" path="res://precision/lab.gd" id="1"]
+[ext_resource type="PackedScene" path="res://assets/rig11.glb" id="2"]
+[ext_resource type="Shader" path="res://candy.gdshader" id="3"]
+
+[sub_resource type="Environment" id="Environment_studio"]
+background_mode = 1
+background_color = Color(0.114, 0.096, 0.143, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.91, 0.85, 0.94, 1)
+ambient_light_energy = 0.62
+tonemap_mode = 0
+
+[sub_resource type="ShaderMaterial" id="Material_candy"]
+shader = ExtResource("3")
+
+[sub_resource type="SphereMesh" id="Mesh_candy"]
+material = SubResource("Material_candy")
+radius = 0.068
+height = 0.136
+radial_segments = 32
+rings = 16
+
+[sub_resource type="StandardMaterial3D" id="Material_stick"]
+albedo_color = Color(0.98, 0.92, 0.82, 1)
+roughness = 0.65
+
+[sub_resource type="CylinderMesh" id="Mesh_stick"]
+material = SubResource("Material_stick")
+top_radius = 0.012
+bottom_radius = 0.013
+height = 0.27
+radial_segments = 16
+
+[sub_resource type="StandardMaterial3D" id="Material_target"]
+transparency = 1
+shading_mode = 0
+albedo_color = Color(1, 0.83, 0.94, 0.8)
+
+[sub_resource type="TorusMesh" id="Mesh_target"]
+material = SubResource("Material_target")
+inner_radius = 0.083
+outer_radius = 0.089
+rings = 32
+ring_segments = 12
+
+[node name="RoseDemo" type="Node3D"]
+script = ExtResource("1")
+snap_radius = 0.05
+reaction_radius = 0.16
+
+[node name="Environment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_studio")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+position = Vector3(0, -0.14, 5)
+projection = 1
+size = 3.18
+current = true
+
+[node name="Key" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-28, -28, 0)
+light_color = Color(1, 0.86, 0.78, 1)
+light_energy = 1.2
+
+[node name="Fill" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-15, 48, 0)
+light_color = Color(0.73, 0.79, 1, 1)
+light_energy = 0.49
+
+[node name="Rim" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-29, 168, 0)
+light_color = Color(1, 0.68, 0.85, 1)
+light_energy = 0.85
+
+[node name="Rose" type="Node3D" parent="."]
+rotation_degrees = Vector3(0, -13, 0)
+
+[node name="Portrait" parent="Rose" instance=ExtResource("2")]
+
+[node name="MouthAnchor" type="Marker3D" parent="Rose"]
+position = Vector3(0, 1.785, 0.123)
+
+[node name="Cue" type="MeshInstance3D" parent="Rose/MouthAnchor"]
+visible = false
+position = Vector3(0, 0, 0.067)
+rotation_degrees = Vector3(90, 0, 0)
+mesh = SubResource("Mesh_target")
+
+[node name="Tray" type="Marker3D" parent="."]
+position = Vector3(0.63, 1.22, 0.33)
+rotation_degrees = Vector3(-22, 0, 18)
+
+[node name="Lollipop" type="Node3D" parent="."]
+[node name="Candy" type="MeshInstance3D" parent="Lollipop"]
+scale = Vector3(1, 1, 0.76)
+mesh = SubResource("Mesh_candy")
+[node name="Stick" type="MeshInstance3D" parent="Lollipop"]
+position = Vector3(0, -0.18, 0)
+mesh = SubResource("Mesh_stick")
+
+[node name="HUD" type="CanvasLayer" parent="."]
+[node name="Top" type="VBoxContainer" parent="HUD"]
+offset_left = 28.0
+offset_top = 20.0
+offset_right = 550.0
+theme_override_constants/separation = 3
+[node name="Title" type="Label" parent="HUD/Top"]
+theme_override_colors/font_color = Color(0.99, 0.89, 0.94, 1)
+theme_override_font_sizes/font_size = 32
+text = "Rosé"
+[node name="Instructions" type="Label" parent="HUD/Top"]
+theme_override_colors/font_color = Color(0.91, 0.85, 0.91, 1)
+theme_override_font_sizes/font_size = 17
+text = "Arraste o pirulito até a boca. Use o botão direito para girar."
+
+[node name="Bottom" type="PanelContainer" parent="HUD"]
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -64.0
+offset_right = -24.0
+offset_bottom = -20.0
+grow_horizontal = 2
+grow_vertical = 0
+[node name="Controls" type="HBoxContainer" parent="HUD/Bottom"]
+theme_override_constants/separation = 12
+[node name="Status" type="Label" parent="HUD/Bottom/Controls"]
+size_flags_horizontal = 3
+text = "  Na bandeja"
+[node name="Action" type="Button" parent="HUD/Bottom/Controls"]
+custom_minimum_size = Vector2(215, 40)
+text = "Oferecer pirulito · Espaço"
+[node name="Reset" type="Button" parent="HUD/Bottom/Controls"]
+custom_minimum_size = Vector2(132, 40)
+text = "Reiniciar · R"
