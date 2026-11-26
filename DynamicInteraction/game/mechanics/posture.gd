@@ -2,6 +2,7 @@ extends "res://precision/pose_solver.gd"
 const IDLE_DROP := 0.51
 const MAX_PULL := 0.27
 var clock:=0.0
+var wardrobe_lift:=Vector2.ZERO
 var body_load:=Vector3.ZERO
 var bend:=[0.,0.]
 var limited:=[false,false]
@@ -40,11 +41,15 @@ func solve(sk:Skeleton3D,contacts:Array,dt:float,influence:float)->void:
   var b:=sk.get_bone_global_pose(fore).origin
   var c:=sk.get_bone_global_pose(palm).origin
   var idle:=a+Vector3(sign_*.108,-IDLE_DROP,.080+.004*sin(clock*1.1+i))
+  var raised:float=wardrobe_lift[i]
+  if raised>.001:
+   var radians:=lerpf(.20,2.72,raised)
+   idle=a+Vector3(sign_*sin(radians)*.51,-cos(radians)*IDLE_DROP,.08+.08*raised)
   var demand:=Vector3.ZERO
   for sample_ in contacts:
    if sample_.region!="" and sample_.surface.x*sign_>0 and sample_.surface.y>.98:
     demand-=Vector3(sample_.normal)*float(sample_.force)*.051*influence
-  if reach_targets.has(side):demand+=Vector3(reach_targets[side])-idle
+  if reach_targets.has(side):demand+=(Vector3(reach_targets[side])-idle)*(1.-raised)
   var goal:=demand.limit_length(MAX_PULL)
   var k:=stiffness*(recovery if demand.length_squared()<.00001 else 1.)
   var remaining:=minf(dt,.1)
