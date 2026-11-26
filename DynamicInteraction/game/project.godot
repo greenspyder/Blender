@@ -1,7 +1,7 @@
 config_version=5
 
 [application]
-config/name="Rosé | Physical Constraints 1.2.4"
+config/name="Rosé | Strap Gesture 1.2.5"
 run/main_scene="res://direct_touch.tscn"
 config/features=PackedStringArray("4.2", "GL Compatibility")
 

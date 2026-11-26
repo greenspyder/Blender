@@ -147,8 +147,16 @@ func clothing_action()->void:
  if links.has(active_hand):
   var garment:String=links[active_hand].name
   if CLOTHES.has(garment):
-   release_grip(active_hand);removed.append(garment);show_garment(garment,false);return
+   take_off(garment)
+   return
  if not removed.is_empty():show_garment(removed.pop_back(),true)
+
+func take_off(garment:String)->void:
+ if not CLOTHES.has(garment) or garment in removed:return
+ for i in links.keys():
+  if links[i].name==garment:release_grip(i)
+ removed.append(garment)
+ show_garment(garment,false)
 
 func show_garment(name_:String,on:bool)->void:
  for mesh_name in CLOTHES[name_]:

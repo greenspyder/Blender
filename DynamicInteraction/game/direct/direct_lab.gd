@@ -8,6 +8,9 @@ var input_drag := TouchDrag.new()
 var prop_velocity := Vector3.ZERO
 var prop_moving := false
 var physics_readout := Label.new()
+const Strap=preload("res://direct/strap.gd")
+const BaseLayer=preload("res://direct/base_layer.gd")
+var base_layer:=BaseLayer.new()
 var grab_mode := false
 var fingers:Dictionary={} # índice do toque -> mãos controladas
 var touches:Dictionary={} # mão -> triângulo, estado e intenção
@@ -19,6 +22,9 @@ var touch_display:=false
 func _ready()->void:
  super()
  picker.configure($Rose/Portrait,skeleton,[$Lollipop/Candy,$Lollipop/Stick])
+ var body:MeshInstance3D=$Rose/Portrait.find_child("Body",true,false)
+ body.get_parent().add_child(base_layer)
+ base_layer.configure(body,skeleton)
  # O diagnóstico herdado e o perfil compartilham os mesmos valores.
  var controls:=diag.get_children().filter(func(node):return node is HSlider)
  var names:=["Rigidez","Amortecimento","Recuperação"]
@@ -75,10 +81,9 @@ func attach_touch(i:int, hit:Dictionary, pos:Vector2, mirrored:bool, initial:Vec
   "point":initial,"physical":initial,"anchor":initial,"normal":normal,"delta":Vector3.ZERO,"force":0.0,"down":true,"mirror":mirrored,
   "screen_origin":camera.unproject_position(initial),
  }
- binding.detail=binding.name
- if not hit.is_empty() and hit.surface.node.name=="Dress" and hit.surface.surface_index==1:
-  var idx:int=hit.surface.indices[hit.face]
-  if hit.surface.vertices[idx].y>1.59:binding.detail="Alça da camisola"
+ binding.strap=Strap.contains_hit(hit)
+ binding.pull=0.
+ binding.detail="Alça da camisola" if binding.strap else binding.name
  touches[i]=binding
  hands[i].enabled=true
  hands[i].visible=true
@@ -119,6 +124,7 @@ func begin_direct(id:int,pos:Vector2)->bool:
   input_drag.failure="A mão já está ocupada"
   return false
  var hit:Dictionary=picker.cast(camera,pos,prefs.values["Tolerância (px)"])
+ if grab_mode and "Camisola" not in removed:hit=Strap.nearby(picker,camera,pos,hit)
  if hit.is_empty() and grab_mode:
   notice="Sem superfície para agarrar"
   input_drag.failure=notice
@@ -160,23 +166,36 @@ func move_direct(id:int,pos:Vector2)->void:
    input_drag.failure="Raio sem interseção com o plano"
    continue
   g.point=projected
+  if g.strap and links.has(i):
+   g.pull=clampf(offset.y/clampf(overlay.size.y*.085,36.,70.),0.,1.)
+   notice="Solte para retirar a camisola" if g.pull>=1. else "Puxe a alça para baixo · %d%%"%roundi(g.pull*100.)
   if not links.has(i):
    g.physical=obstacle_motion(g.physical,g.point,.012)
    place_hand(i,{"p":g.physical,"n":g.normal})
    update_contact(i,g)
 
-func end_direct(id:int,_pos:Vector2,_canceled:bool)->void:
+func end_direct(id:int,_pos:Vector2,canceled:bool)->void:
+ var remove_dress:=false
  if fingers.has(id):active_hand=fingers[id][0]
  for i in fingers.get(id,[]):
   if not touches.has(i):continue
   var g:Dictionary=touches[i]
-  if links.has(i):release_grip(i)
+  if links.has(i):
+   if not canceled and not g.mirror and g.strap and g.pull>=1.:remove_dress=true
+   release_grip(i)
   g.down=false
   g.point=g.physical
   g.force=0.0
   update_contact(i,g)
   notice="Solto · "+str(g.detail) if not g.detail.is_empty() else "Solto"
  fingers.erase(id)
+ if remove_dress:
+  take_off("Camisola")
+  notice="Camisola retirada · toque em Recolocar para vestir"
+
+func show_garment(name_:String,on:bool)->void:
+ super(name_,on)
+ base_layer.set_layers("Camisola" in removed,"Short" in removed)
 
 func cancel_direct()->void:
  for id in fingers.keys():end_direct(id,Vector2.ZERO,true)
@@ -198,7 +217,7 @@ func _input(event:InputEvent)->void:
  if not is_node_ready():return
  if event is InputEventScreenTouch:
   touch_display=true
-  if event.pressed and not event.canceled and garment_button.is_visible_in_tree() and garment_button.get_global_rect().has_point(event.position):
+  if event.pressed and not event.canceled and garment_button.is_visible_in_tree() and not garment_button.disabled and garment_button.get_global_rect().has_point(event.position):
    clothing_action();get_viewport().set_input_as_handled();return
  if event is InputEventMouse and event.device!=InputEvent.DEVICE_ID_EMULATION and fingers.is_empty():
   touch_display=false
@@ -235,7 +254,7 @@ func start_link(i:int,g:Dictionary)->void:
    candy.global_transform=world_pose
  links[i]={"name":g.name,"point":g.base,"cursor":g.base,"arm":arm,"wrist":wrist("Palm"+side),"stretch":Vector3.ZERO}
  hands[i].pose_index=3
- notice="Vinculado · "+str(g.detail)
+ notice="Alça agarrada · puxe para baixo" if g.strap else "Vinculado · "+str(g.detail)
 
 func follow_held(dt:float)->void:
  if not direct_active:
@@ -306,6 +325,7 @@ func refresh_physical_hand(i:int,g:Dictionary)->void:
 func _physics_process(dt:float)->void:
  for key in ["Rigidez","Amortecimento","Recuperação","Suavização"]:settings[key]=prefs.values[key]
  super(dt)
+ base_layer.copy_pose()
  if direct_active:
   reach_label.hide()
   for i in touches.keys():
