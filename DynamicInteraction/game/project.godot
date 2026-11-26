@@ -1,14 +1,16 @@
 config_version=5
 
 [application]
-config/name="Rosé | Dynamic Interaction 1.1"
-run/main_scene="res://precision_lab.tscn"
+config/name="Rosé | Dynamic Interaction Mobile"
+run/main_scene="res://mobile_lab.tscn"
 config/features=PackedStringArray("4.2", "GL Compatibility")
 
 [display]
 window/size/viewport_width=960
 window/size/viewport_height=720
 window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/handheld/orientation=6
 
 [rendering]
 renderer/rendering_method="gl_compatibility"
