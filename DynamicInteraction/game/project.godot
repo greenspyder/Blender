@@ -1,7 +1,7 @@
 config_version=5
 
 [application]
-config/name="Rosé | Direct Touch 1.2.2"
+config/name="Rosé | Touch & Drag 1.2.3"
 run/main_scene="res://direct_touch.tscn"
 config/features=PackedStringArray("4.2", "GL Compatibility")
 
