@@ -16,7 +16,7 @@ static func contains_hit(hit:Dictionary)->bool:
 static func in_strap(point:Vector3)->bool:
  return point.y>=1.595 and absf(point.x)>=.085
 
-static func nearby(picker, camera:Camera3D, screen:Vector2, primary:Dictionary)->Dictionary:
+static func nearby(picker, camera:Camera3D, screen:Vector2, primary:Dictionary,prepared:Array=[])->Dictionary:
  if contains_hit(primary):return primary
  if not primary.is_empty() and primary.surface.node.name not in ["Body","Dress"]:return primary
  var candidates:Array[Dictionary]=[]
@@ -44,11 +44,12 @@ static func nearby(picker, camera:Camera3D, screen:Vector2, primary:Dictionary)-
  candidates.sort_custom(func(a,b):return a.distance<b.distance)
  # Um raio por candidato confirma que cabelo, corpo e objetos não o ocluem.
  var checked:Array[Vector2]=[]
+ var query:Array=picker.prepare_query() if prepared.is_empty() and not candidates.is_empty() else prepared
  for candidate in candidates:
   if checked.size()>=7:break
   var point:Vector2=candidate.screen
   if checked.any(func(previous:Vector2):return previous.distance_squared_to(point)<2.25):continue
   checked.append(point)
-  var hit:Dictionary=picker.cast(camera,point,0)
+  var hit:Dictionary=picker.cast(camera,point,0,query)
   if contains_hit(hit):return hit
  return primary

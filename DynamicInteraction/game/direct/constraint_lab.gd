@@ -23,6 +23,7 @@ var lever:MeshInstance3D
 var stops:Array[MeshInstance3D]=[]
 var bar:=HBoxContainer.new()
 var report:=Label.new()
+var meter=preload("res://direct/physics_meter.gd").new()
 var popup:PopupPanel
 
 func box(parent:Node3D, center:Vector3, size_:Vector3, color:Color) -> MeshInstance3D:
@@ -71,6 +72,7 @@ func _ready()->void:
    "Rosé":btn.pressed.connect(func():get_tree().change_scene_to_file("res://direct_touch.tscn"))
    "Ajustes":btn.pressed.connect(func():clear_grips();popup.popup_centered_ratio(.8))
    "Reiniciar":btn.pressed.connect(reset)
+ meter.attach(overlay,Vector2(12,66))
  overlay.add_child(report)
  report.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
  report.position+=Vector2(12,-174)
@@ -103,6 +105,7 @@ func pick(screen:Vector2)->Dictionary:
  return result
 
 func begin(id:int,screen:Vector2)->bool:
+ meter.register_input()
  if grips.has(id) or grips.size()>=2:
   router.failure="Use até dois dedos"
   return false
@@ -129,6 +132,7 @@ func begin(id:int,screen:Vector2)->bool:
 
 func move(id:int,screen:Vector2)->void:
  if not grips.has(id):return
+ meter.register_input()
  var g:Dictionary=grips[id]
  var target:Variant=TouchDrag.project(camera,g.plane,screen)
  if target!=null:g.target=target
@@ -158,16 +162,21 @@ func simulate(h:float)->void:
  var net:=0.
  var torque:=0.
  var mass:float=prefs.values["Massa (kg)"]
+ var held_cart:=false
+ var held_lever:=false
  for g in grips.values():
   var point:Vector3=g.part.to_global(g.local)
   var arm:=point-PIVOT_ORIGIN
   var velocity:=Vector3.RIGHT*cart_speed if g.part==cart else Vector3.BACK.cross(arm)*spin
   g.force=Grip.traction(g.target,point,velocity,prefs.values)
-  if g.part==cart:net+=Vector3(g.force).x
-  else:torque+=arm.cross(g.force).z
- var friction:=exp(-float(prefs.values["Atrito"])*h)
- cart_speed=clampf((cart_speed+net/mass*h)*friction,-2.,2.)
- spin=clampf((spin+torque/(mass*.22)*h)*friction,-4.,4.)
+  if g.part==cart:
+   held_cart=true
+   net+=Vector3(g.force).x
+  else:
+   held_lever=true
+   torque+=arm.cross(g.force).z
+ cart_speed=clampf((cart_speed+net/mass*h)*Grip.friction_factor(h,prefs.values,held_cart),-2.,2.)
+ spin=clampf((spin+torque/(mass*.22)*h)*Grip.friction_factor(h,prefs.values,held_lever),-4.,4.)
  var next_x:=cart_x+cart_speed*h
  cart_x=clampf(next_x,RAIL_MIN,RAIL_MAX)
  if cart_x!=next_x:cart_speed=0.
@@ -180,6 +189,7 @@ func simulate(h:float)->void:
   g.marker.global_position=Vector3(g.anchor)+Vector3.BACK*.027
 
 func _physics_process(dt:float)->void:
+ var t:=meter.begin_tick()
  var remaining:=minf(dt,.05)
  while remaining>.00001:
   var h:=minf(remaining,Grip.STEP)
@@ -192,6 +202,7 @@ func _physics_process(dt:float)->void:
   lines.append("Desejada %.2f, %.2f · Efetiva %.2f, %.2f m" % [g.target.x,g.target.y,g.anchor.x,g.anchor.y])
  if not router.failure.is_empty():lines.append(router.failure)
  report.text="\n".join(lines)
+ meter.end_tick(t)
 
 func _notification(what:int)->void:
  if what==NOTIFICATION_APPLICATION_FOCUS_OUT:clear_grips()

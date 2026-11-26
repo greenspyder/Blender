@@ -8,6 +8,7 @@ var input_drag := TouchDrag.new()
 var prop_velocity := Vector3.ZERO
 var prop_moving := false
 var physics_readout := Label.new()
+var meter=preload("res://direct/physics_meter.gd").new()
 const Strap=preload("res://direct/strap.gd")
 const GarmentPull=preload("res://direct/garment_pull.gd")
 var garment:=GarmentPull.new()
@@ -33,7 +34,12 @@ func _ready()->void:
  for j in controls.size():
   var key:String=names[j]
   controls[j].value=prefs.values[key]
-  controls[j].value_changed.connect(func(v):prefs.values[key]=v)
+  controls[j].value_changed.connect(func(v):prefs.set_value(key,v))
+  var slider:HSlider=controls[j]
+  var caption:Label=diag.get_child(slider.get_index()-1)
+  prefs.profile_changed.connect(func():
+   slider.set_value_no_signal(prefs.values[key])
+   caption.text="%s %.2f"%[key,prefs.values[key]])
  options_panel=prefs.panel(overlay)
  button(toolbar,"Ajustes",func():cancel_direct();options_panel.popup_centered_ratio(.8))
  button(toolbar,"Tecidos",func():get_tree().change_scene_to_file("res://direct/fabric.tscn"))
@@ -46,7 +52,13 @@ func _ready()->void:
  interaction.item_selected.connect(func(index):set_grab_mode(index==1))
  input_drag.add_debug(overlay,button(toolbar,"Debug toque",func():pass))
  button(toolbar,"Teste cubo",func():get_tree().change_scene_to_file("res://direct/drag_cube.tscn"))
- button(footer,"Física",func():physics_readout.visible=not physics_readout.visible)
+ meter.attach(overlay,Vector2.ZERO)
+ meter.caption.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+ meter.caption.position+=Vector2(12,-385)
+ meter.caption.hide()
+ button(footer,"Física",func():
+  physics_readout.visible=not physics_readout.visible
+  meter.caption.visible=physics_readout.visible)
  button(footer,"Bancada",func():get_tree().change_scene_to_file("res://direct/constraint_lab.tscn"))
  overlay.add_child(physics_readout)
  physics_readout.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
@@ -80,7 +92,7 @@ func attach_touch(i:int, hit:Dictionary, pos:Vector2, mirrored:bool, initial:Vec
  var binding={
   "hit":hit,"name":label_for(hit) if not hit.is_empty() else "",
   "start":pos,"base":initial,"plane":Plane(camera.global_basis.z,initial),
-  "point":initial,"physical":initial,"anchor":initial,"normal":normal,"bind_normal":normal,"delta":Vector3.ZERO,"force":0.0,"down":true,"mirror":mirrored,
+  "point":initial,"physical":initial,"anchor":initial,"normal":normal,"bind_normal":normal,"force":0.0,"down":true,"mirror":mirrored,
   "screen_origin":camera.unproject_position(initial),
  }
  binding.strap=Strap.contains_hit(hit)
@@ -117,6 +129,7 @@ func place_hand(i:int,sample_:Dictionary)->void:
  h.global_position+=Vector3(sample_.p)+n*.002-h.tips[1].global_position
 
 func begin_direct(id:int,pos:Vector2)->bool:
+ meter.register_input()
  var i:=1 if tool==Tool.LEFT else 0
  if tool==Tool.MULTI:
   i=0 if pos.x>=overlay.size.x*.5 else 1
@@ -125,8 +138,9 @@ func begin_direct(id:int,pos:Vector2)->bool:
  if touches.has(i) and touches[i].down:
   input_drag.failure="A mão já está ocupada"
   return false
- var hit:Dictionary=picker.cast(camera,pos,prefs.values["Tolerância (px)"])
- if grab_mode and "Camisola" not in removed:hit=Strap.nearby(picker,camera,pos,hit)
+ var query:Array=picker.prepare_query()
+ var hit:Dictionary=picker.cast(camera,pos,prefs.values["Tolerância (px)"],query)
+ if grab_mode and "Camisola" not in removed:hit=Strap.nearby(picker,camera,pos,hit,query)
  if hit.is_empty() and grab_mode:
   notice="Sem superfície para agarrar"
   input_drag.failure=notice
@@ -143,20 +157,21 @@ func begin_direct(id:int,pos:Vector2)->bool:
   local.x=2*center_x-local.x
   var mirrored:=rose.to_global(local)
   var other_pos:=camera.unproject_position(mirrored)
-  var other:Dictionary=picker.cast(camera,other_pos,prefs.values["Tolerância (px)"])
+  var other:Dictionary=picker.cast(camera,other_pos,prefs.values["Tolerância (px)"],picker.prepare_query())
   if other.is_empty():
    var source:String=touches[i].name
    if source.ends_with(" E") or source.ends_with(" D"):
     var opposite:=source.left(-1)+("E" if source.ends_with(" D") else "D")
     if anchors.has(opposite):
      other_pos=camera.unproject_position(anchors[opposite])
-     other=picker.cast(camera,other_pos,prefs.values["Tolerância (px)"])
+     other=picker.cast(camera,other_pos,prefs.values["Tolerância (px)"],picker.prepare_query())
   if not other.is_empty() or not grab_mode:
    fingers[id].append(1-i)
    attach_touch(1-i,other,pos,true,other.get("p",mirrored))
  return true
 
 func move_direct(id:int,pos:Vector2)->void:
+ meter.register_input()
  if fingers.has(id):active_hand=fingers[id][0]
  for i in fingers.get(id,[]):
   if not touches.has(i):continue
@@ -322,13 +337,16 @@ func follow_held(dt:float)->void:
    continue
   var spring:=Grip.traction(g.point,g.anchor,Vector3.ZERO,prefs.values)
   g.force=spring.length()
-  var goal:=spring/Grip.force_limit(prefs.values)*.31
-  g.delta=Vector3(g.delta).lerp(goal,1-exp(-dt*float(prefs.values["Suavização"])))
-  hands[i].desired=Vector3(g.base)+Vector3(g.delta)
+  hands[i].desired=g.point
  if not prop_goals.is_empty() or prop_moving:advance_prop(dt,prop_goals)
  for i in links:
   if links[i].name=="Pirulito":hands[i].global_position=candy.global_position
  super(dt)
+
+func grip_stretch(slot:int,delta:Vector3)->Vector3:
+ if not direct_active or not touches.has(slot) or garment.owns(slot):
+  return super(slot,delta)
+ return Grip.body_stretch(delta,prefs.values)
 
 func advance_prop(dt:float, goals:Array[Dictionary])->void:
  var offsets:Array[Vector3]=[]
@@ -343,7 +361,7 @@ func advance_prop(dt:float, goals:Array[Dictionary])->void:
    var spring:=Grip.traction(goals[i].point,candy.global_position+offsets[i],prop_velocity,prefs.values)
    goals[i].force=spring.length()
    total+=spring
-  prop_velocity=Grip.drag_velocity(prop_velocity+total/float(prefs.values["Massa (kg)"])*h,h,prefs.values).limit_length(1.8)
+  prop_velocity=((prop_velocity+total/float(prefs.values["Massa (kg)"])*h)*Grip.friction_factor(h,prefs.values,not goals.is_empty())).limit_length(1.8)
   var start:=candy.global_position
   var dest:=(start+prop_velocity*h).clamp(Vector3(-1.15,.18,-.55),Vector3(1.15,2.24,.65))
   dest=obstacle_motion(start,dest,.036)
@@ -375,7 +393,9 @@ func refresh_physical_hand(i:int,g:Dictionary)->void:
  update_contact(i,g)
 
 func _physics_process(dt:float)->void:
- for key in ["Rigidez","Amortecimento","Recuperação","Suavização"]:settings[key]=prefs.values[key]
+ var t:=meter.begin_tick()
+ for key in ["Amortecimento","Recuperação","Suavização"]:settings[key]=prefs.values[key]
+ settings["Rigidez"]=Grip.pose_stiffness(prefs.values)
  garment.advance(minf(dt,.05))
  var lift:=Vector2(garment.arm_weight(false),garment.arm_weight(true))
  solver.wardrobe_lift=solver.wardrobe_lift.lerp(lift,1.-exp(-dt*16.))
@@ -421,3 +441,4 @@ func _physics_process(dt:float)->void:
  if not prefs.indicators:
   reach_label.hide()
   for tag in tags:tag.hide()
+ meter.end_tick(t)

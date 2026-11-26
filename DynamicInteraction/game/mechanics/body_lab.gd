@@ -164,14 +164,16 @@ func show_garment(name_:String,on:bool)->void:
   if obj:obj.visible=on
  sync_anchors()
 
+func grip_stretch(_slot:int,delta:Vector3)->Vector3:
+ return (delta/(1.+delta.length()*2.2)).limit_length(.26)
+
 func follow_held(dt:float)->void:
  var total:=Vector3.ZERO
  var cloth:={}
  for i in links:
   var link:Dictionary=links[i]
   var delta:Vector3=hands[i].desired-link.cursor
-  var yield_:float=1./(1.+delta.length()*2.2)
-  var stretch:Vector3=(delta*yield_).limit_length(.26)
+  var stretch:=grip_stretch(i,delta)
   link.stretch=stretch;force_readout[i]=minf(1.,delta.length()*3.4)
   if link.name=="Pirulito":
    candy.global_position=hands[i].global_position;continue

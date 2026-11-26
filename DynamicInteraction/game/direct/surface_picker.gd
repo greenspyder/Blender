@@ -55,6 +55,9 @@ func register(instance:MeshInstance3D,index:int)->void:
     var first:=indices[f+offset]*4
     for j in 4:
      if s.weights[first+j]>0:cell.slots[s.joints[first+j]]=true
+ var bounds:=AABB(vertices[0],Vector3.ZERO)
+ for cell in s.cells.values():bounds=bounds.merge(cell.box)
+ s.bounds=bounds
  surfaces.append(s)
 
 func update_surface(s:Dictionary)->void:
@@ -99,41 +102,66 @@ static func selection_offsets(tolerance:float)->Array[Vector2]:
    for i in 8:offsets.append(Vector2.RIGHT.rotated(i*TAU/8)*float(radius))
  return offsets
 
-func cast(camera:Camera3D,screen:Vector2,tolerance:float)->Dictionary:
- var offsets:=selection_offsets(tolerance)
+func expanded_box(box:AABB,margin:Vector3)->AABB:
+ return AABB(box.position-margin,box.size+2*margin+Vector3.ONE*.00001)
+
+func posed_bounds(s:Dictionary,box:AABB,slots:Array)->AABB:
+ if slots.is_empty():return s.node.global_transform*box
+ var bounds:AABB=s.matrix[slots[0]]*box
+ for i in range(1,slots.size()):bounds=bounds.merge(s.matrix[slots[i]]*box)
+ return bounds
+
+func prepare_query()->Array:
+ var query:Array=[]
  for s in surfaces:
-  if s.node.is_visible_in_tree():update_surface(s)
- for offset in offsets:
-  var o:=camera.project_ray_origin(screen+Vector2(offset))
-  var d:=camera.project_ray_normal(screen+Vector2(offset))
+  if not s.node.is_visible_in_tree():continue
+  update_surface(s)
+  var box:=expanded_box(s.bounds,s.margin)
+  var bounds:=posed_bounds(s,box,range(s.slots.size()))
+  query.append({"surface":s,"bounds":bounds,"cells":[],"vertices":{}})
+ return query
+
+func query_cells(entry:Dictionary)->Array:
+ var cells:Array=entry.cells
+ if not cells.is_empty():return cells
+ var s:Dictionary=entry.surface
+ var margin:Vector3=s.margin
+ for cell in s.cells.values():
+  var bounds:=posed_bounds(s,expanded_box(cell.box,margin),cell.slots.keys())
+  cells.append({"bounds":bounds,"faces":cell.faces})
+ return cells
+
+func cast(camera:Camera3D,screen:Vector2,tolerance:float,prepared:Array=[])->Dictionary:
+ var query:=prepare_query() if prepared.is_empty() else prepared
+ for offset in selection_offsets(tolerance):
+  var o:=camera.project_ray_origin(screen+offset)
+  var d:=camera.project_ray_normal(screen+offset)
   var best:Dictionary={}
   var nearest:=INF
-  for s in surfaces:
-   if not s.node.is_visible_in_tree():continue
-   var cache:Dictionary={}
-   for cell in s.cells.values():
-    var box:AABB=cell.box
-    box=AABB(box.position-Vector3(s.margin),box.size+2*Vector3(s.margin)+Vector3.ONE*.00001)
-    var bounds:AABB=s.node.global_transform*box
-    if not cell.slots.is_empty():
-     var first:=true
-     for slot in cell.slots:
-      var posed:AABB=s.matrix[slot]*box
-      bounds=posed if first else bounds.merge(posed);first=false
+  for entry in query:
+   var outer:AABB=entry.bounds
+   if outer.intersects_ray(o,d)==null:continue
+   var s:Dictionary=entry.surface
+   var cache:Dictionary=entry.vertices
+   var ids:PackedInt32Array=s.indices
+   for cell in query_cells(entry):
+    var bounds:AABB=cell.bounds
     if bounds.intersects_ray(o,d)==null:continue
     for f in cell.faces:
-     var ids:PackedInt32Array=s.indices
      for j in range(f,f+3):
       if not cache.has(ids[j]):cache[ids[j]]=vertex(s,ids[j])
-     var a:Vector3=cache[ids[f]];var b:Vector3=cache[ids[f+1]];var c:Vector3=cache[ids[f+2]]
+     var a:Vector3=cache[ids[f]]
+     var b:Vector3=cache[ids[f+1]]
+     var c:Vector3=cache[ids[f+2]]
      var crossing:=intersection(o,d,a,b,c)
-     if crossing.x<0:continue
-     var point:=o+d*crossing.x
-     var dist:=crossing.x
-     if dist>=nearest:continue
-     nearest=dist
-     var n:=(b-a).cross(c-a).normalized()
-     var sign_:=-1. if n.dot(d)>0 else 1.
-     best={"p":point,"n":n*sign_,"surface":s,"face":f,"bary":Vector3(1-crossing.y-crossing.z,crossing.y,crossing.z),"sign":sign_,"offset":offset}
+     if crossing.x<0 or crossing.x>=nearest:continue
+     nearest=crossing.x
+     var normal:=(b-a).cross(c-a).normalized()
+     var sign_:=-1. if normal.dot(d)>0 else 1.
+     best={
+      "p":o+d*nearest,"n":normal*sign_,"surface":s,"face":f,
+      "bary":Vector3(1-crossing.y-crossing.z,crossing.y,crossing.z),
+      "sign":sign_,"offset":offset,
+     }
   if not best.is_empty():return best
  return {}

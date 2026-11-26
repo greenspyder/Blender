@@ -2,6 +2,12 @@ extends Node3D
 # Rede de partículas com distância de repouso, diagonais e dobra de dois segmentos.
 const Picker=preload("res://direct/surface_picker.gd")
 var prefs=preload("res://direct/preferences.gd").new()
+var meter=preload("res://direct/physics_meter.gd").new()
+var unchanged_ticks:=0
+var rendered_indicators:=true
+var dirty:=true
+var seen_revision:=-1
+var inverse_mass:=PackedFloat32Array()
 var pos:=PackedVector3Array()
 var last:=PackedVector3Array()
 var rest:=PackedVector3Array()
@@ -22,7 +28,10 @@ var tick_left:=0.
 var message:="Toque no tecido, mantenha e arraste."
 
 func add_edge(a:int,b:int,weight:float)->void:
- edges.append([a,b,rest[a].distance_to(rest[b]),weight])
+ var ma:=inverse_mass[a]
+ var mb:=inverse_mass[b]
+ if ma+mb>0.:
+  edges.append([a,b,rest[a].distance_to(rest[b]),weight,ma/(ma+mb),mb/(ma+mb)])
 
 func sample_grid(name_:String,cols:int,rows:int,center:float,width:float,handle:bool)->void:
  var start:=pos.size()
@@ -34,6 +43,7 @@ func sample_grid(name_:String,cols:int,rows:int,center:float,width:float,handle:
    if handle:p=Vector3(center-cos(v*PI)*.225+(u-.5)*width,-.30+sin(v*PI)*.56,.06)
    var i:=pos.size();pos.append(p);rest.append(p);last.append(p)
    if (handle and y in [0,rows-1]) or (not handle and y==0 and (cols<=3 or x in [0,cols-1])):pinned[i]=true
+   inverse_mass.append(0. if pinned.has(i) else 1.)
    if x>0:add_edge(i,i-1,1)
    if y>0:add_edge(i,i-cols,1)
    if x>1:add_edge(i,i-2,.32)
@@ -68,9 +78,17 @@ func _ready()->void:
   match title:
    "Rosé":btn.pressed.connect(func():get_tree().change_scene_to_file("res://direct_touch.tscn"))
    "Ajustes":btn.pressed.connect(func():holds.clear();popup.popup_centered_ratio(.8))
-   "Reiniciar":btn.pressed.connect(func():holds.clear();pos=rest.duplicate();last=rest.duplicate())
+   "Reiniciar":btn.pressed.connect(reset_fabric)
  panel.add_child(label);label.position=Vector2(10,66);label.mouse_filter=Control.MOUSE_FILTER_IGNORE
+ meter.attach(panel,Vector2(10,94))
  rebuild()
+
+func reset_fabric()->void:
+ holds.clear()
+ pos=rest.duplicate()
+ last=rest.duplicate()
+ unchanged_ticks=0
+ dirty=true
 
 func pick(screen:Vector2)->Dictionary:
  var offsets:=Picker.selection_offsets(float(prefs.values["Tolerância (px)"]))
@@ -107,19 +125,25 @@ func _input(e:InputEvent)->void:
  if release:
   if holds.erase(id):message="Solto"
  elif holds.has(id):
+  meter.register_input()
   holds[id].screen=screen
   if holds[id].age<prefs.values["Pressão longa (s)"] and screen.distance_to(holds[id].start)>prefs.values["Precisão do gesto (px)"]:holds[id].eligible=false
  elif press and not bar.get_global_rect().has_point(screen):
+  meter.register_input()
   var hit:=pick(screen)
-  if not hit.is_empty():holds[id]=hit;message="Contato · "+str(hit.name)
+  if not hit.is_empty():
+   holds[id]=hit
+   unchanged_ticks=0
+   message="Contato · "+str(hit.name)
 
 func simulate(h:float)->void:
- var damping:=exp(-float(prefs.values["Amortecimento"])*5*h)
+ var relative_mass:=sqrt(float(prefs.values["Massa (kg)"])/.5)
+ var damping:=exp(-float(prefs.values["Amortecimento"])*5.6*h/maxf(.65,relative_mass))
  for i in pos.size():
-  if pinned.has(i):continue
+  if inverse_mass[i]==0.:continue
   var old:=pos[i]
   var recovery:Vector3=(rest[i]-old)*float(prefs.values["Recuperação"])*14.
-  pos[i]+=(old-last[i])*damping+(Vector3.DOWN*.95+recovery)*h*h
+  pos[i]+=(old-last[i]).limit_length(.030)*damping+(Vector3.DOWN*.95+recovery)*h*h
   last[i]=old
  for hold in holds.values():
   hold.age+=h
@@ -136,24 +160,24 @@ func simulate(h:float)->void:
   for edge in edges:
    var a:int=edge[0];var b:int=edge[1];var delta:=pos[b]-pos[a];var length:=delta.length()
    if length<.00001:continue
-   var count:=int(not pinned.has(a))+int(not pinned.has(b))
-   if count==0:continue
-   var correction:=delta*((length-float(edge[2]))/length*stiffness*float(edge[3])/count)
-   if not pinned.has(a):pos[a]+=correction
-   if not pinned.has(b):pos[b]-=correction
+   var correction:=delta*((length-float(edge[2]))/length*stiffness*float(edge[3]))
+   pos[a]+=correction*float(edge[4])
+   pos[b]-=correction*float(edge[5])
   for hold in holds.values():
    if not hold.eligible or hold.age<prefs.values["Pressão longa (s)"]:continue
    var contact:=Vector3.ZERO;var divisor:=0.
    for j in 3:
     var i:=indices[int(hold.f)+j];var w:float=hold.bary[j]
     contact+=pos[i]*w
-    if not pinned.has(i):divisor+=w*w
+    divisor+=w*w*inverse_mass[i]
    if divisor<.0001:continue
    for j in 3:
     var i:=indices[int(hold.f)+j]
-    if not pinned.has(i):pos[i]+=(Vector3(hold.target)-contact).limit_length(.018)*float(hold.bary[j])/divisor*.45
+    var correction:=((Vector3(hold.target)-contact)*float(hold.bary[j])/divisor*.45)
+    var maximum:=.018/maxf(.68,relative_mass)
+    pos[i]+=correction.limit_length(maximum)*inverse_mass[i]
   for i in pos.size():
-   if pinned.has(i):continue
+   if inverse_mass[i]==0.:continue
    var away:=pos[i]-OBSTACLE
    if away.length()<RADIUS+.006:pos[i]=OBSTACLE+away.normalized()*(RADIUS+.006)
    pos[i].y=maxf(pos[i].y,-.55)
@@ -169,10 +193,30 @@ func rebuild()->void:
  visual.surface_end()
 
 func _physics_process(dt:float)->void:
- tick_left+=minf(.05,dt)
- while tick_left>=1./120:
-  simulate(1./120);tick_left-=1./120
- rebuild();label.visible=prefs.indicators;label.text=message
+ var start:=meter.begin_tick()
+ if seen_revision!=prefs.revision:
+  seen_revision=prefs.revision
+  unchanged_ticks=0
+ if unchanged_ticks<18 or not holds.is_empty():
+  tick_left+=minf(.05,dt)
+  while tick_left>=1./120:
+   simulate(1./120)
+   tick_left-=1./120
+  var max_offset:=0.
+  for i in pos.size():max_offset=maxf(max_offset,pos[i].distance_squared_to(last[i]))
+  unchanged_ticks=unchanged_ticks+1 if holds.is_empty() and max_offset<1.e-10 else 0
+  dirty=true
+ meter.end_tick(start)
+
+func _process(_dt:float)->void:
+ if rendered_indicators!=prefs.indicators:
+  rendered_indicators=prefs.indicators
+  dirty=true
+ if dirty:
+  rebuild()
+  dirty=false
+ label.visible=prefs.indicators
+ label.text=message
 
 func _notification(what:int)->void:
  if what==NOTIFICATION_APPLICATION_FOCUS_OUT:holds.clear()
