@@ -1,5 +1,6 @@
 extends Node3D
 
+var surface_sample:Dictionary={}
 var posed_detector:Variant=null
 var desired := Vector3.ZERO
 var last := Vector3.ZERO
@@ -72,6 +73,9 @@ func advance(point:Vector3,dt:float,roll:float,debug_on:bool,detector)->Dictiona
    var joint:Node3D=joints[f][j]
    var curl:float=clampf(CURL[pose_index][f]+(1-aperture)*.75,0,1.15)
    joint.rotation.x=lerpf(joint.rotation.x,-curl*(.65 if j==0 else 1.05),1-exp(-dt*16))
+ if not surface_sample.is_empty():
+  mark.hide()
+  return surface_sample
  var from:=position
  desired=desired.lerp(point,1-exp(-dt*smoothness))
  var dest:=from.move_toward(desired,speed_limit*dt)
