@@ -29,6 +29,12 @@ func drag(id:int,p:Vector2)->void:
 func step(n:=2)->void:
  for i in n:lab._physics_process(1./60)
 
+func wait_state(wardrobe,target:int,frames:int)->bool:
+ for i in frames:
+  if wardrobe.state==target:return true
+  step(1)
+ return wardrobe.state==target
+
 func visible_strap()->Variant:
  for s in lab.picker.surfaces:
   if s.node.name!="Dress" or s.surface_index!=1:continue
@@ -103,6 +109,9 @@ func run()->void:
  touch(4,p,true)
  var origin:Vector3=lab.touches[0].anchor
  drag(4,p+Vector2(0,-210))
+ check(wardrobe.cage.position[0].distance_to(origin)<.003,"início conserva a posição da alça")
+ for i in wardrobe.cage.position.size():
+  check(Vector3(wardrobe.cage.position[i]).distance_to(wardrobe.equipped_point+wardrobe.cage.rest[i])<.001,"captura começa sem deslocar vértices")
  step(22)
  check(wardrobe.state==Garment.State.PULLING and wardrobe.progress<1.,"gesto passa por estados intermediários")
  var lift_r:float=lab.wrist("PalmR").y-right_before.y
@@ -111,16 +120,34 @@ func run()->void:
  check((lift_r>lift_l)==(wardrobe.side>0.),"braço do lado da alça começa primeiro")
  check(lab.hands[0].tips[1].global_position.distance_to(wardrobe.global_position)<.004,"mão fica na alça em movimento")
  check(wardrobe.global_position.distance_to(origin)>.20,"peça se desloca visivelmente")
- step(22)
+ var cloth_positions:PackedVector3Array=wardrobe.cage.position.duplicate()
+ step(5)
+ var different_motion:=0.
+ for i in wardrobe.cage.position.size():
+  var strap_motion:Vector3=wardrobe.cage.position[0]-cloth_positions[0]
+  different_motion=maxf(different_motion,(Vector3(wardrobe.cage.position[i])-cloth_positions[i]-strap_motion).length())
+ check(different_motion>.018,"barra deforma e apresenta atraso em relação à alça")
+ # A troca de estado deve preservar a malha e a velocidade até a travessia.
+ var continuity:=0.
+ for i in 75:
+  var previous:PackedVector3Array=wardrobe.cage.position.duplicate()
+  step(1)
+  for j in previous.size():continuity=maxf(continuity,previous[j].distance_to(wardrobe.cage.position[j]))
+  if wardrobe.state==Garment.State.HELD:break
  check(wardrobe.state==Garment.State.HELD and lab.links.has(0),"continua agarrada depois de desvestir")
+ check(continuity<.09,"sem salto de partículas na passagem dos ombros")
  check(not dress.visible and not bow.visible and shorts.visible,"apenas camisola e laço foram movidos")
  var airtime:Vector3=wardrobe.global_position
  drag(4,p+Vector2(110,-260))
  step(12)
  check(wardrobe.global_position.distance_to(airtime)>.015,"peça livre acompanha a mão")
  touch(4,p+Vector2(110,-260),false)
- step(130)
- check(wardrobe.state==Garment.State.RESTING and wardrobe.meshes.size()==2,"peça repousa no chão, ainda presente")
+ var previous:PackedVector3Array=wardrobe.cage.position.duplicate()
+ step(1)
+ var release_motion:=0.
+ for j in previous.size():release_motion=maxf(release_motion,previous[j].distance_to(wardrobe.cage.position[j]))
+ check(release_motion<.085,"soltura conserva posição das partículas")
+ check(wait_state(wardrobe,Garment.State.RESTING,270) and wardrobe.meshes.size()==2,"peça repousa no chão, ainda presente")
  check(absf(wardrobe.lowest_world_y()-wardrobe.FLOOR_Y)<.004,"repouso encosta no chão")
  check(lab.links.is_empty() and lab.fingers.is_empty() and lab.removed.count(CAMISOLA)==1,"retirada registrada uma vez")
  check(lab.wrist("PalmR").distance_to(right_before)<.07 and lab.wrist("PalmL").distance_to(left_before)<.07,"braços se recuperam")
@@ -129,7 +156,7 @@ func run()->void:
  touch(5,button_center,false)
  step(13)
  check(wardrobe.state==Garment.State.DRESSING and wardrobe.meshes.size()==2,"recolocar começa com a mesma peça")
- step(80)
+ check(wait_state(wardrobe,Garment.State.WORN,200),"recolocar termina")
  check(dress.visible and bow.visible and shorts.visible and wardrobe.meshes.is_empty(),"gesto de recolocar restaura a peça vestida")
  check(lab.removed.is_empty(),"estado da roupa restaurado")
  p=visible_strap()
@@ -137,8 +164,7 @@ func run()->void:
   touch(6,p,true)
   drag(6,p+Vector2(0,-210))
   touch(6,p+Vector2(0,-210),false)
-  step(40)
-  check(not dress.visible and wardrobe.state in [Garment.State.FALLING,Garment.State.RESTING],"soltura rápida conclui a animação")
+  check(wait_state(wardrobe,Garment.State.WORN,110) and dress.visible and not CAMISOLA in lab.removed,"soltar antes da passagem não dispara a retirada automática")
   lab.mobile_reset()
   step()
   check(dress.visible and lab.removed.is_empty() and wardrobe.meshes.is_empty(),"reinício restaura a roupa")

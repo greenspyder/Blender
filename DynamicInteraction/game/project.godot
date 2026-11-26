@@ -2,7 +2,7 @@ config_version=5
 
 [application]
 config/name="Rosé | Physical Responsiveness 1.2.6 r2"
-config/description="Rosé 1.2.7 | Controles unificados para PC e Android"
+config/description="Rosé 1.2.8 | Tecido contínuo para PC e Android"
 run/main_scene="res://direct_touch.tscn"
 config/features=PackedStringArray("4.2", "GL Compatibility")
 

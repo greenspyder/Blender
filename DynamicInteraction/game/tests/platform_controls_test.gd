@@ -168,15 +168,15 @@ func desktop_garment()->void:
  if target==null:return
  click(target)
  motion(target+Vector2(0,-220),Vector2(0,-220))
- step(42)
+ step(95)
  check(lab.garment.state==Garment.State.HELD and lab.links.has(0),"mouse puxa a camisola pela alça")
  # Soltar com o segundo clique, em uma área de cena livre do HUD.
  var release_at:Vector2=target+Vector2(40,10)
  click(release_at)
- step(120)
+ step(245)
  check(lab.garment.state==Garment.State.RESTING and lab.links.is_empty(),"camisola continua na cena depois de soltar")
  click(lab.garment_button.get_global_rect().get_center())
- step(92)
+ step(170)
  check(lab.garment.state==Garment.State.WORN and lab.removed.is_empty(),"botão Recolocar funciona com mouse")
 
 func switch_and_touch()->void:

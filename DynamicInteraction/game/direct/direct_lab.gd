@@ -29,7 +29,7 @@ var desktop_slider_active:=false
 
 
 func _ready()->void:
- get_window().title="Rosé 1.2.7"
+ get_window().title="Rosé 1.2.8"
  super()
  picker.configure($Rose/Portrait,skeleton,[$Lollipop/Candy,$Lollipop/Stick])
  garment.name="Camisola_em_movimento"
@@ -259,7 +259,7 @@ func update_garment_pull(i:int,g:Dictionary)->void:
  if garment.state==GarmentPull.State.HELD:
   notice="Camisola na mão · solte para largar"
  elif g.pull>=1.:
-  notice="Camisola passando pelos ombros"
+  notice="Aguarde o tecido passar pelos ombros"
  else:
   notice="Puxe a alça para cima · %d%%"%roundi(g.pull*100.)
 
@@ -307,8 +307,7 @@ func clothing_action()->void:
  if garment_selected:
   if garment.state==GarmentPull.State.WORN:begin_garment(active_hand,link.point)
   if garment.owns(active_hand):
-   garment.pull(1.,garment.path(1.))
-   garment.release(false)
+   garment.finish_with_button()
    release_grip(active_hand)
   return
  super()
@@ -580,10 +579,20 @@ func refresh_physical_hand(i:int,g:Dictionary)->void:
  place_hand(i,{"p":g.physical,"n":g.normal})
  update_contact(i,g)
 
+func update_garment_collisions()->void:
+ if garment.state in [GarmentPull.State.WORN,GarmentPull.State.RESTING]:return
+ garment.obstacles=[
+  [wrist("Spine")+Vector3(0,.15,-.012),Vector3(.195,.24,.13)],
+  [wrist("Head")+Vector3(0,.235,-.005),Vector3(.193,.23,.161)],
+  [wrist("UpperL"),Vector3(.073,.087,.067)],
+  [wrist("UpperR"),Vector3(.073,.087,.067)],
+ ]
+
 func _physics_process(dt:float)->void:
  var t:=meter.begin_tick()
  for key in ["Amortecimento","Recuperação","Suavização"]:settings[key]=prefs.values[key]
  settings["Rigidez"]=Grip.pose_stiffness(prefs.values)
+ update_garment_collisions()
  garment.advance(minf(dt,.05))
  var lift:=Vector2(garment.arm_weight(false),garment.arm_weight(true))
  solver.wardrobe_lift=solver.wardrobe_lift.lerp(lift,1.-exp(-dt*16.))
