@@ -67,7 +67,7 @@ func run():
   var g:Dictionary=lab.touches[slot]
   check(lab.camera.unproject_position(lab.hands[slot].tips[1].global_position).distance_to(point)<2.,"dedo sobre a tela")
   check(not lab.links.has(slot),"toque curto")
-  var drag_point:=point+Vector2(95,-20)
+  var drag_point:=point+Vector2(95,28)
   var original_depth:float=lab.camera.to_local(g.point).z
   drag(8,drag_point)
   check(Vector3(g.point).distance_to(g.base)<.001,"índice diferente ignorado")
@@ -85,6 +85,11 @@ func run():
   for i in 10:drag(3,point+Vector2(i*2,-i));step(1)
   drag(3,point+Vector2(250,70));step(25)
   check(lab.force_readout[slot]>.05 and lab.solver.body_load.length()>.001,"tração")
+  check(Vector3(lab.touches[slot].point).distance_to(lab.touches[slot].physical)>.25,"dedo distante da mão restringida")
+  var actual:Dictionary=lab.picker.track(lab.touches[slot].hit)
+  check(lab.hands[slot].tips[1].global_position.distance_to(actual.p)<.004,"mão permanece no triângulo da Rosé")
+  drag(5,left+Vector2(-200,70));step(70)
+  check(lab.links.size()==2 and lab.solver.body_load.length()<=.241,"puxadas opostas nos braços ficam limitadas")
   touch(3,point,false);check(lab.links.size()==1,"soltura independente")
   touch(5,left,false);step(120);check(lab.links.is_empty() and lab.solver.body_load.length()<.004,"recuperação")
  lab.select_tool(lab.Tool.MIRROR);touch(6,point,true);step(1)
@@ -98,7 +103,8 @@ func run():
  check(lab.candy.global_position.distance_to(candy_origin)>.05,"pirulito move")
  var candy_parked:Vector3=lab.candy.global_position
  touch(7,candy_screen,false);drag(7,candy_screen+Vector2(160,20));step(12)
- check(lab.links.is_empty() and lab.candy.global_position.distance_to(candy_parked)<.0001,"pirulito para ao soltar")
+ check(lab.links.is_empty() and lab.fingers.is_empty(),"pirulito libera")
+ check(lab.candy.global_position.distance_to(candy_parked)<.32,"inércia após soltar é limitada")
  lab.camera_mode()
  var yaw_before:float=lab.yaw
  touch(9,Vector2(450,360),true);drag(9,Vector2(520,360));touch(9,Vector2(520,360),false)
@@ -141,11 +147,19 @@ func run():
  print("Rosé · integração com cena principal concluída")
  var bench=load("res://direct/fabric.tscn").instantiate();lab.queue_free();await process_frame;root.add_child(bench);await process_frame
  bench.set_physics_process(false)
- for name_ in ["Amostra","Tira","Alça de bolsa"]:
+ for name_ in ["Amostra","Cordão","Tira","Alça de bolsa"]:
+  bench.pos=bench.rest.duplicate();bench.last=bench.rest.duplicate()
+  for i in 300:bench.simulate(1./120)
+  var baseline:PackedVector3Array=bench.pos.duplicate()
+  var sample_vertices:Dictionary={}
+  for f in range(0,bench.indices.size(),3):
+   if bench.groups[f/3]!=name_:continue
+   for j in 3:sample_vertices[bench.indices[f+j]]=true
   var found:=false
   for f in range(0,bench.indices.size(),3):
    if bench.groups[f/3]!=name_ or bench.pinned.has(bench.indices[f]):continue
    var p:Vector3=(bench.pos[bench.indices[f]]+bench.pos[bench.indices[f+1]]+bench.pos[bench.indices[f+2]])/3
+   if p.y>.18 or p.y<-.30:continue
    var screen:Vector2=bench.cam.unproject_position(p)
    var h:Dictionary=bench.pick(screen)
    if h.is_empty() or h.name!=name_:continue
@@ -156,14 +170,14 @@ func run():
    check(not bench.holds.is_empty(),"vínculo tecido")
    touch(8,screen,false)
    var peak:=0.
-   for i in bench.pos.size():peak=maxf(peak,bench.pos[i].distance_to(bench.rest[i]))
+   for i in sample_vertices:peak=maxf(peak,bench.pos[i].distance_to(baseline[i]))
    for i in 200:bench.simulate(1./120)
    var after:=0.
    for i in bench.pos.size():
     check(bench.pos[i].is_finite() and bench.pos[i].distance_to(bench.rest[i])<.75,"estabilidade")
     if bench.pinned.has(i):check(bench.pos[i]==bench.rest[i],"pino fixo")
-    after=maxf(after,bench.pos[i].distance_to(bench.rest[i]))
+    if sample_vertices.has(i):after=maxf(after,bench.pos[i].distance_to(baseline[i]))
    check(peak>.03 and after<peak,"retorno tecido "+name_)
    break
   check(found,"alvo "+name_)
- print("Touch & Drag 1.2.3 · falhas: ",faults);quit(faults)
+ print("Toque e resistência 1.2.4 · falhas: ",faults);quit(faults)

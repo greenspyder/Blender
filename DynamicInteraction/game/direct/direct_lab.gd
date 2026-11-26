@@ -3,7 +3,11 @@ extends "res://mechanics/body_lab.gd"
 var picker=preload("res://direct/surface_picker.gd").new()
 var prefs=preload("res://direct/preferences.gd").new()
 const TouchDrag = preload("res://direct/touch_drag.gd")
+const Grip = preload("res://direct/grip_physics.gd")
 var input_drag := TouchDrag.new()
+var prop_velocity := Vector3.ZERO
+var prop_moving := false
+var physics_readout := Label.new()
 var grab_mode := false
 var fingers:Dictionary={} # índice do toque -> mãos controladas
 var touches:Dictionary={} # mão -> triângulo, estado e intenção
@@ -34,6 +38,13 @@ func _ready()->void:
  interaction.item_selected.connect(func(index):set_grab_mode(index==1))
  input_drag.add_debug(overlay,button(toolbar,"Debug toque",func():pass))
  button(toolbar,"Teste cubo",func():get_tree().change_scene_to_file("res://direct/drag_cube.tscn"))
+ button(footer,"Física",func():physics_readout.visible=not physics_readout.visible)
+ button(footer,"Bancada",func():get_tree().change_scene_to_file("res://direct/constraint_lab.tscn"))
+ overlay.add_child(physics_readout)
+ physics_readout.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+ physics_readout.position+=Vector2(12,-345)
+ physics_readout.mouse_filter=Control.MOUSE_FILTER_IGNORE
+ physics_readout.hide()
  select_tool(Tool.MULTI)
  touch_display=OS.has_feature("mobile") or DisplayServer.is_touchscreen_available()
 
@@ -61,7 +72,7 @@ func attach_touch(i:int, hit:Dictionary, pos:Vector2, mirrored:bool, initial:Vec
  var binding={
   "hit":hit,"name":label_for(hit) if not hit.is_empty() else "",
   "start":pos,"base":initial,"plane":Plane(camera.global_basis.z,initial),
-  "point":initial,"normal":normal,"delta":Vector3.ZERO,"down":true,"mirror":mirrored,
+  "point":initial,"physical":initial,"anchor":initial,"normal":normal,"delta":Vector3.ZERO,"force":0.0,"down":true,"mirror":mirrored,
   "screen_origin":camera.unproject_position(initial),
  }
  binding.detail=binding.name
@@ -82,7 +93,7 @@ func attach_touch(i:int, hit:Dictionary, pos:Vector2, mirrored:bool, initial:Vec
 func update_contact(i:int,g:Dictionary)->void:
  var tracked:Dictionary={}
  if g.down and not g.hit.is_empty() and g.hit.surface.node.is_visible_in_tree():
-  if links.has(i):tracked=picker.track(g.hit)
+  if links.has(i):tracked={"p":g.anchor,"n":g.normal}
   elif not grab_mode and Vector3(g.point).distance_to(g.base)<.004:tracked=g.hit
  hands[i].surface_sample={
   "region":g.name if not tracked.is_empty() else "",
@@ -112,7 +123,7 @@ func begin_direct(id:int,pos:Vector2)->bool:
   notice="Sem superfície para agarrar"
   input_drag.failure=notice
   return false
- var reference:Vector3=touches[i].point if touches.has(i) else Vector3(0,pivot_y,0)
+ var reference:Vector3=touches[i].physical if touches.has(i) else Vector3(0,pivot_y,0)
  var initial:Vector3=hit.get("p",TouchDrag.project(camera,Plane(camera.global_basis.z,reference),pos))
  direct_active=true
  active_hand=i
@@ -149,8 +160,10 @@ func move_direct(id:int,pos:Vector2)->void:
    input_drag.failure="Raio sem interseção com o plano"
    continue
   g.point=projected
-  place_hand(i,{"p":g.point,"n":g.normal})
-  update_contact(i,g)
+  if not links.has(i):
+   g.physical=obstacle_motion(g.physical,g.point,.012)
+   place_hand(i,{"p":g.physical,"n":g.normal})
+   update_contact(i,g)
 
 func end_direct(id:int,_pos:Vector2,_canceled:bool)->void:
  if fingers.has(id):active_hand=fingers[id][0]
@@ -159,6 +172,8 @@ func end_direct(id:int,_pos:Vector2,_canceled:bool)->void:
   var g:Dictionary=touches[i]
   if links.has(i):release_grip(i)
   g.down=false
+  g.point=g.physical
+  g.force=0.0
   update_contact(i,g)
   notice="Solto · "+str(g.detail) if not g.detail.is_empty() else "Solto"
  fingers.erase(id)
@@ -167,6 +182,8 @@ func cancel_direct()->void:
  for id in fingers.keys():end_direct(id,Vector2.ZERO,true)
  input_drag.captured.clear()
  touches.clear();direct_active=false
+ prop_velocity=Vector3.ZERO
+ prop_moving=false
  for hand in hands:
   hand.surface_sample={}
   hand.rotation=Vector3.ZERO
@@ -207,7 +224,7 @@ func start_link(i:int,g:Dictionary)->void:
  var side:="L" if str(g.name).ends_with(" E") else "R"
  var arm:=side if str(g.name).begins_with("Mão") or str(g.name).begins_with("Antebraço") else ""
  for other in links.values():
-  if (g.name=="Pirulito" and other.name=="Pirulito") or (arm!="" and other.arm==arm):
+  if arm!="" and other.arm==arm:
    notice="Alvo já conduzido pela outra mão"
    input_drag.failure=notice
    return
@@ -217,7 +234,6 @@ func start_link(i:int,g:Dictionary)->void:
    _return_to_tray()
    candy.global_transform=world_pose
  links[i]={"name":g.name,"point":g.base,"cursor":g.base,"arm":arm,"wrist":wrist("Palm"+side),"stretch":Vector3.ZERO}
- g.object_origin=candy.global_position
  hands[i].pose_index=3
  notice="Vinculado · "+str(g.detail)
 
@@ -225,19 +241,67 @@ func follow_held(dt:float)->void:
  if not direct_active:
   super(dt)
   return
+ var prop_goals: Array[Dictionary]=[]
  for i in touches:
   var g:Dictionary=touches[i]
   if not links.has(i):continue
   if not g.hit.surface.node.is_visible_in_tree():
    release_grip(i)
+   g.force=0.0
    input_drag.failure="A superfície ficou indisponível"
    continue
-  var raw:Vector3=(g.point-g.base)*float(prefs.values["Sensibilidade"])
-  var goal:=raw.limit_length(.40*float(prefs.values["Força máxima"]))*float(prefs.values["Elasticidade"])
+  if g.name=="Pirulito":
+   prop_goals.append(g)
+   continue
+  var spring:=Grip.traction(g.point,g.anchor,Vector3.ZERO,prefs.values)
+  g.force=spring.length()
+  var goal:=spring/Grip.force_limit(prefs.values)*.31
   g.delta=Vector3(g.delta).lerp(goal,1-exp(-dt*float(prefs.values["Suavização"])))
   hands[i].desired=Vector3(g.base)+Vector3(g.delta)
-  if g.name=="Pirulito":hands[i].global_position=Vector3(g.object_origin)+Vector3(g.delta)
+ if not prop_goals.is_empty() or prop_moving:advance_prop(dt,prop_goals)
+ for i in links:
+  if links[i].name=="Pirulito":hands[i].global_position=candy.global_position
  super(dt)
+
+func advance_prop(dt:float, goals:Array[Dictionary])->void:
+ var offsets:Array[Vector3]=[]
+ for g in goals:
+  var sample:Dictionary=picker.track(g.hit)
+  offsets.append(sample.p-candy.global_position)
+ var remaining:=minf(dt,.05)
+ while remaining>.00001:
+  var h:=minf(remaining,Grip.STEP)
+  var total:=Vector3.ZERO
+  for i in goals.size():
+   var spring:=Grip.traction(goals[i].point,candy.global_position+offsets[i],prop_velocity,prefs.values)
+   goals[i].force=spring.length()
+   total+=spring
+  prop_velocity=Grip.drag_velocity(prop_velocity+total/float(prefs.values["Massa (kg)"])*h,h,prefs.values).limit_length(1.8)
+  var start:=candy.global_position
+  var dest:=(start+prop_velocity*h).clamp(Vector3(-1.15,.18,-.55),Vector3(1.15,2.24,.65))
+  dest=obstacle_motion(start,dest,.036)
+  prop_velocity=(dest-start)/h
+  candy.global_position=dest
+  remaining-=h
+ prop_moving=prop_velocity.length()>.005
+
+func obstacle_motion(start:Vector3,end:Vector3,radius:float)->Vector3:
+ var hit:Dictionary=moving.sweep(start,end,radius)
+ if hit.is_empty():return end
+ var stop:=start.lerp(end,maxf(0.,float(hit.t)-.001))
+ var slide:Vector3=(end-stop).slide(hit.normal)
+ var next:Dictionary=moving.sweep(stop,stop+slide,radius)
+ return stop+slide*(1. if next.is_empty() else maxf(0.,float(next.t)-.001))
+
+func refresh_physical_hand(i:int,g:Dictionary)->void:
+ if links.has(i):
+  var tracked:Dictionary=picker.track(g.hit)
+  g.anchor=tracked.p
+  g.physical=tracked.p
+  g.normal=tracked.n
+  force_readout[i]=float(g.force)/Grip.force_limit(prefs.values)
+ place_hand(i,{"p":g.physical,"n":g.normal})
+ update_contact(i,g)
 
 func _physics_process(dt:float)->void:
  for key in ["Rigidez","Amortecimento","Recuperação","Suavização"]:settings[key]=prefs.values[key]
@@ -246,13 +310,12 @@ func _physics_process(dt:float)->void:
   reach_label.hide()
   for i in touches.keys():
    var g:Dictionary=touches[i]
-   place_hand(i,{"p":g.point,"n":g.normal})
-   update_contact(i,g)
-   tags[i].position=camera.unproject_position(g.point)+Vector2(10,-18)
+   refresh_physical_hand(i,g)
+   tags[i].position=camera.unproject_position(g.physical)+Vector2(10,-18)
    tags[i].text=("● " if links.has(i) else "○ ")+str(g.detail)
    if links.has(i):
     tags[i].text+=" · %d%%"%roundi(force_readout[i]*100)
-    if Vector3(g.delta).length()>=.38*float(prefs.values["Força máxima"])*float(prefs.values["Elasticidade"]):tags[i].text+=" · limite"
+    if float(g.force)>=.97*Grip.force_limit(prefs.values):tags[i].text+=" · limite"
    tags[i].visible=prefs.indicators and not g.detail.is_empty()
   feedback.text=notice
   for i in range(2):
@@ -268,6 +331,14 @@ func _physics_process(dt:float)->void:
   for tag in tags:tag.hide()
   reach_label.hide()
   feedback.text="Agarrar · toque em um alvo e arraste" if grab_mode else "Tocar · arraste a mão livremente"
+ if physics_readout.visible:
+  var g:Dictionary=touches.get(active_hand,{})
+  if g.is_empty():
+   physics_readout.text="Aguardando toque"
+  else:
+   var target:Vector3=g.point
+   var actual:Vector3=g.physical
+   physics_readout.text="Desejada %s\nEfetiva %s\nDiferença %.3f m · %.1f / %.1f N\n%s · Rigidez %.0f · Amort. %.2f" % [target,actual,target.distance_to(actual),g.force,Grip.force_limit(prefs.values),"Vinculado" if links.has(active_hand) else "Livre",prefs.values["Rigidez"],prefs.values["Amortecimento"]]
  input_drag.update_debug(hands[active_hand].tips[1].global_position,touches.get(active_hand,{}).get("detail",""),links.has(active_hand))
  feedback.visible=prefs.indicators
  if not prefs.indicators:

@@ -5,7 +5,7 @@ var surfaces:Array = []
 var skeleton:Skeleton3D
 # Möller–Trumbore: tolerância relativa à área. O viés e o cabo do pirulito
 # ficam pequenos demais para um epsilon absoluto depois de escalar o objeto.
-func intersection(o:Vector3,d:Vector3,a:Vector3,b:Vector3,c:Vector3)->Vector3:
+static func intersection(o:Vector3,d:Vector3,a:Vector3,b:Vector3,c:Vector3)->Vector3:
  var e1:=b-a;var e2:=c-a;var v:=d.cross(e2);var det:=e1.dot(v)
  if absf(det)<=maxf(1e-15,1e-7*e1.length()*e2.length()):return Vector3(-1,0,0)
  var rel:=o-a;var u:=rel.dot(v)/det
@@ -92,10 +92,15 @@ func track(hit:Dictionary)->Dictionary:
  var bary:Vector3=hit.bary
  return {"p":a*bary.x+b*bary.y+c*bary.z,"n":(b-a).cross(c-a).normalized()*float(hit.sign)}
 
-func cast(camera:Camera3D,screen:Vector2,tolerance:float)->Dictionary:
- var offsets:=[Vector2.ZERO]
+static func selection_offsets(tolerance:float)->Array[Vector2]:
+ var offsets: Array[Vector2]=[Vector2.ZERO]
  if tolerance>0:
-  for i in 8:offsets.append(Vector2.RIGHT.rotated(i*TAU/8)*tolerance)
+  for radius in [tolerance*.5,tolerance]:
+   for i in 8:offsets.append(Vector2.RIGHT.rotated(i*TAU/8)*float(radius))
+ return offsets
+
+func cast(camera:Camera3D,screen:Vector2,tolerance:float)->Dictionary:
+ var offsets:=selection_offsets(tolerance)
  for s in surfaces:
   if s.node.is_visible_in_tree():update_surface(s)
  for offset in offsets:

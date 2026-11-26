@@ -7,7 +7,7 @@ var touch_count := 0
 var drag_count := 0
 var last_event := "—"
 var failure := ""
-var debug := Label.new()
+var debug: Label
 
 func capture(event: InputEvent, can_start: bool, start: Callable, move: Callable, finish: Callable) -> bool:
  if event is InputEventScreenTouch:
@@ -47,6 +47,7 @@ func add_debug(overlay: Control, button: Button) -> void:
  panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
  panel.position += Vector2(12,-225)
  panel.hide()
+ debug = Label.new()
  panel.add_child(debug)
  debug.mouse_filter = Control.MOUSE_FILTER_IGNORE
  button.pressed.connect(func(): panel.visible = not panel.visible)

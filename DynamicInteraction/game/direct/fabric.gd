@@ -1,5 +1,6 @@
 extends Node3D
 # Rede de partículas com distância de repouso, diagonais e dobra de dois segmentos.
+const Picker=preload("res://direct/surface_picker.gd")
 var prefs=preload("res://direct/preferences.gd").new()
 var pos:=PackedVector3Array()
 var last:=PackedVector3Array()
@@ -25,6 +26,7 @@ func add_edge(a:int,b:int,weight:float)->void:
 
 func sample_grid(name_:String,cols:int,rows:int,center:float,width:float,handle:bool)->void:
  var start:=pos.size()
+ var first_edge:=edges.size()
  for y in rows:
   for x in cols:
    var u:=float(x)/(cols-1);var v:=float(y)/(rows-1)
@@ -40,10 +42,13 @@ func sample_grid(name_:String,cols:int,rows:int,center:float,width:float,handle:
     add_edge(i,i-cols-1,.62);add_edge(i-1,i-cols,.62)
     indices.append_array(PackedInt32Array([i-cols-1,i-cols,i,i-cols-1,i,i-1]))
     groups.append(name_);groups.append(name_)
+ var resistance:=1.25 if name_=="Cordão" else (.85 if name_=="Amostra" else 1.)
+ for e in range(first_edge,edges.size()):edges[e][3]*=resistance
  assert(pos.size()==start+rows*cols)
 
 func _ready()->void:
  sample_grid("Amostra",8,9,-.63,.48,false)
+ sample_grid("Cordão",2,14,-.255,.020,false)
  sample_grid("Tira",3,12,0,.10,false)
  sample_grid("Alça de bolsa",3,15,.62,.055,true)
  mat.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -68,8 +73,7 @@ func _ready()->void:
  rebuild()
 
 func pick(screen:Vector2)->Dictionary:
- var offsets:=[Vector2.ZERO]
- for i in 8:offsets.append(Vector2.RIGHT.rotated(i*TAU/8)*float(prefs.values["Tolerância (px)"]))
+ var offsets:=Picker.selection_offsets(float(prefs.values["Tolerância (px)"]))
  for off in offsets:
   var o:=cam.project_ray_origin(screen+Vector2(off));var d:=cam.project_ray_normal(screen+Vector2(off))
   var solid:Variant=Geometry3D.segment_intersects_sphere(o,o+d*8,OBSTACLE,RADIUS)
@@ -77,10 +81,12 @@ func pick(screen:Vector2)->Dictionary:
   var hit:Dictionary={}
   for f in range(0,indices.size(),3):
    var a:=pos[indices[f]];var b:=pos[indices[f+1]];var c:=pos[indices[f+2]]
-   var p:Variant=Geometry3D.ray_intersects_triangle(o,d,a,b,c)
-   if p==null or o.distance_squared_to(p)>=nearest:continue
+   var cross:=Picker.intersection(o,d,a,b,c)
+   if cross.x<0:continue
+   var p:=o+d*cross.x
+   if o.distance_squared_to(p)>=nearest:continue
    nearest=o.distance_squared_to(p)
-   hit={"f":f,"base":p,"target":p,"bary":Geometry3D.get_triangle_barycentric_coords(p,a,b,c),"age":0.,"eligible":true,"start":screen,"screen":screen,"name":groups[f/3]}
+   hit={"f":f,"base":p,"target":p,"bary":Vector3(1-cross.y-cross.z,cross.y,cross.z),"age":0.,"eligible":true,"start":screen,"screen":screen,"name":groups[f/3]}
   if not hit.is_empty():return hit
  return {}
 
@@ -157,6 +163,7 @@ func rebuild()->void:
  for k in indices.size():
   var i:=indices[k]
   var color:=Color("#e4a6b5") if rest[i].x<-.3 else (Color("#9acfc9") if rest[i].x<.3 else Color("#e3bc80"))
+  if absf(rest[i].x+.255)<.02:color=Color("#b1a4d9")
   if prefs.indicators:color=color.lerp(Color.CRIMSON,minf(1.,pos[i].distance_to(rest[i])*2))
   visual.surface_set_color(color);visual.surface_add_vertex(pos[i])
  visual.surface_end()

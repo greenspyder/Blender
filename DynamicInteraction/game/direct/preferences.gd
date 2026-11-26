@@ -7,6 +7,8 @@ const SPECS={
  "Precisão do gesto (px)":[2,28,1,12],
  "Rigidez":[12,100,1,52],
  "Elasticidade":[.25,1.8,.05,1.],
+ "Massa (kg)":[.2,5.,.1,1.],
+ "Atrito":[0.,12.,.1,3.5],
  "Amortecimento":[.5,1.8,.05,.9],
  "Força máxima":[.15,1.,.05,.85],
  "Recuperação":[.25,2.,.05,1.],
