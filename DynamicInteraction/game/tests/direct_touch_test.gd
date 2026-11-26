@@ -47,6 +47,7 @@ func run():
  if faults>0:quit(faults);return
  print("Cubo · toque, índice, arraste, profundidade e soltura aprovados")
  lab=load("res://direct_touch.tscn").instantiate();root.add_child(lab);await process_frame
+ lab.set_control_mode(lab.ControlMode.Mode.TOUCHSCREEN,false)
  lab.set_physics_process(false);step(60)
  for yaw in [0.,.48,-.72]:
   lab.yaw=yaw;lab.update_camera()
@@ -132,13 +133,14 @@ func run():
   canceled.index=11;canceled.position=strap_screen;canceled.canceled=true
   root.push_input(canceled,true)
   check(lab.links.is_empty() and lab.fingers.is_empty(),"cancelamento encerra captura")
+ lab.set_control_mode(lab.ControlMode.Mode.DESKTOP,false)
  lab.select_tool(lab.Tool.RIGHT)
  var mouse:=InputEventMouseButton.new()
  mouse.button_index=MOUSE_BUTTON_LEFT
  mouse.position=lab.camera.unproject_position(lab.anchors["Mão D"])
  mouse.pressed=true
  root.push_input(mouse,true)
- check(lab.links.has(0) and lab.fingers.is_empty(),"clique do PC preservado")
+ check(lab.links.has(0) and lab.fingers.has(lab.desktop_id()),"clique do PC usa vínculo compartilhado")
  mouse.pressed=false
  root.push_input(mouse,true)
  mouse.pressed=true

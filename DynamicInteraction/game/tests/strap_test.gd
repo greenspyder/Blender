@@ -46,6 +46,7 @@ func run()->void:
  lab=load("res://direct_touch.tscn").instantiate()
  root.add_child(lab)
  await process_frame
+ lab.set_control_mode(lab.ControlMode.Mode.TOUCHSCREEN,false)
  lab.set_physics_process(false)
  lab.select_tool(lab.Tool.RIGHT)
  lab.set_grab_mode(true)

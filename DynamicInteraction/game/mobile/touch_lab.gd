@@ -213,7 +213,7 @@ func start_finger(id:int,pos:Vector2)->bool:
     owners[id]="rotation";rotation_owner[id]=btn.get_meta("rotation")
     roll=clampf(roll+float(rotation_owner[id])*.10,-1.5,1.5)
    return true
- if grip_button.get_global_rect().has_point(pos):
+ if grip_button.visible and grip_button.get_global_rect().has_point(pos):
   if not grip_button.disabled:toggle_grip()
   return true
  if side_button.visible and side_button.get_global_rect().has_point(pos):

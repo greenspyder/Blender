@@ -115,10 +115,13 @@ func reset_demo() -> void:
  yaw=0;pitch=.04;zoom_size=2.65;pivot_y=1.02;depth=.31;roll=0
  update_camera()
 
-func _physics_process(dt:float) -> void:
+func apply_keyboard(dt:float)->void:
  pivot_y=clampf(pivot_y+(int(Input.is_key_pressed(KEY_UP))-int(Input.is_key_pressed(KEY_DOWN)))*dt,0,2.15)
  depth=clampf(depth+(int(Input.is_key_pressed(KEY_S))-int(Input.is_key_pressed(KEY_W)))*dt*.42,-.31,.60)
  roll=clampf(roll+(int(Input.is_key_pressed(KEY_E))-int(Input.is_key_pressed(KEY_Q)))*dt,-1.5,1.5)
+
+func _physics_process(dt:float) -> void:
+ apply_keyboard(dt)
  update_camera()
  var normal:=camera.global_basis.z
  var plane:=Plane(normal,Vector3(0,pivot_y,0)+normal*depth)

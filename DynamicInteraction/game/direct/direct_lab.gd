@@ -19,8 +19,17 @@ var direct_active:=false
 var options_panel:PopupPanel
 var notice:=""
 var touch_display:=false
+const ControlMode=preload("res://direct/control_mode.gd")
+var control_mode:=ControlMode.new()
+var control_menu:=OptionButton.new()
+var interaction:=OptionButton.new()
+var desktop_cursor:=Vector2.ZERO
+var mouse_touch_down:=false
+var desktop_slider_active:=false
+
 
 func _ready()->void:
+ get_window().title="Rosé 1.2.7"
  super()
  picker.configure($Rose/Portrait,skeleton,[$Lollipop/Candy,$Lollipop/Stick])
  garment.name="Camisola_em_movimento"
@@ -43,7 +52,6 @@ func _ready()->void:
  options_panel=prefs.panel(overlay)
  button(toolbar,"Ajustes",func():cancel_direct();options_panel.popup_centered_ratio(.8))
  button(toolbar,"Tecidos",func():get_tree().change_scene_to_file("res://direct/fabric.tscn"))
- var interaction := OptionButton.new()
  interaction.add_item("Tocar")
  interaction.add_item("Agarrar")
  interaction.select(0)
@@ -65,8 +73,51 @@ func _ready()->void:
  physics_readout.position+=Vector2(12,-345)
  physics_readout.mouse_filter=Control.MOUSE_FILTER_IGNORE
  physics_readout.hide()
+ for label in ["Automático","Desktop","Touchscreen"]:control_menu.add_item(label)
+ control_menu.custom_minimum_size=Vector2(140,48)
+ toolbar.add_child(control_menu)
+ toolbar.move_child(control_menu,1)
+ control_menu.item_selected.connect(set_control_mode)
+ for control in footer.get_children():
+  if control.has_meta("rotation"):
+   var amount:float=control.get_meta("rotation")
+   control.pressed.connect(func():roll=clampf(roll+amount*.10,-1.5,1.5))
+ rail.drag_started.connect(func():desktop_slider_active=not touch_display)
+ rail.drag_ended.connect(func(_changed):desktop_slider_active=false)
+ footer.resized.connect(position_footer)
  select_tool(Tool.MULTI)
- touch_display=OS.has_feature("mobile") or DisplayServer.is_touchscreen_available()
+ desktop_cursor=pointer
+ set_control_mode(control_mode.choice,false)
+
+func set_control_mode(choice:int,persist:=true)->void:
+ if choice not in [ControlMode.Mode.AUTO,ControlMode.Mode.DESKTOP,ControlMode.Mode.TOUCHSCREEN]:return
+ clear_input()
+ _orbiting=false
+ control_mode.choice=choice
+ var mobile_host:=OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios")
+ touch_display=ControlMode.touchscreen(choice,mobile_host)
+ control_menu.set_item_text(ControlMode.Mode.AUTO,"Auto · "+("Touchscreen" if mobile_host else "Desktop"))
+ control_menu.select(choice)
+ control_menu.tooltip_text="Modo ativo: "+("Touchscreen" if touch_display else "Desktop")
+ interaction.visible=touch_display
+ resize_canvas()
+ if persist and control_mode.save()!=OK:notice="Modo aplicado nesta sessão"
+ refresh()
+
+func resize_canvas()->void:
+ if not touch_ui:return
+ if touch_display:
+  super()
+ else:
+  get_window().content_scale_size=Vector2i(960,720)
+
+func layout()->void:
+ super()
+ position_footer()
+
+func position_footer()->void:
+ footer.position.y=overlay.size.y-maxf(68.,footer.get_combined_minimum_size().y+16.)
+ feedback.position.y=footer.position.y-57.
 
 func label_for(hit:Dictionary)->String:
  var part:String=str(hit.surface.node.name)
@@ -86,7 +137,7 @@ func set_grab_mode(enabled:bool)->void:
  cancel_direct()
  grab_mode=enabled
 
-func attach_touch(i:int, hit:Dictionary, pos:Vector2, mirrored:bool, initial:Vector3)->void:
+func attach_touch(i:int,hit:Dictionary,pos:Vector2,mirrored:bool,initial:Vector3,should_grip:bool,from_mouse:bool)->void:
  if links.has(i):release_grip(i)
  var normal:Vector3=hit.get("n",camera.global_basis.z)
  var binding={
@@ -94,6 +145,7 @@ func attach_touch(i:int, hit:Dictionary, pos:Vector2, mirrored:bool, initial:Vec
   "start":pos,"base":initial,"plane":Plane(camera.global_basis.z,initial),
   "point":initial,"physical":initial,"anchor":initial,"normal":normal,"bind_normal":normal,"force":0.0,"down":true,"mirror":mirrored,
   "screen_origin":camera.unproject_position(initial),
+  "desktop":from_mouse,"depth_origin":depth_by_hand[i],"pull_pixels":0.,"pull_bias":0.,
  }
  binding.strap=Strap.contains_hit(hit)
  binding.pull=0.
@@ -107,13 +159,13 @@ func attach_touch(i:int, hit:Dictionary, pos:Vector2, mirrored:bool, initial:Vec
  place_hand(i,{"p":initial,"n":normal})
  update_contact(i,binding)
  notice="Contato · "+binding.detail if not binding.name.is_empty() else "Mão livre"
- if grab_mode:start_link(i,binding)
+ if should_grip:start_link(i,binding)
 
 func update_contact(i:int,g:Dictionary)->void:
  var tracked:Dictionary={}
  if g.down and not g.hit.is_empty() and (garment.owns(i) or g.hit.surface.node.is_visible_in_tree()):
   if links.has(i):tracked={"p":g.anchor,"n":g.normal}
-  elif not grab_mode and Vector3(g.point).distance_to(g.base)<.004:tracked=g.hit
+  elif not g.desktop and not grab_mode and Vector3(g.point).distance_to(g.base)<.004:tracked=g.hit
  hands[i].surface_sample={
   "region":g.name if not tracked.is_empty() else "",
   "surface":tracked.get("p",g.point),"normal":tracked.get("n",g.normal),
@@ -129,19 +181,23 @@ func place_hand(i:int,sample_:Dictionary)->void:
  h.global_position+=Vector3(sample_.p)+n*.002-h.tips[1].global_position
 
 func begin_direct(id:int,pos:Vector2)->bool:
+ return begin_gesture(id,pos,grab_mode,false)
+
+func begin_gesture(id:int,pos:Vector2,should_grip:bool,from_mouse:bool)->bool:
  meter.register_input()
  var i:=1 if tool==Tool.LEFT else 0
  if tool==Tool.MULTI:
-  i=0 if pos.x>=overlay.size.x*.5 else 1
-  for slot in [i,1-i]:
-   if not touches.has(slot) or not touches[slot].down:i=slot;break
+  i=active_hand if from_mouse else (0 if pos.x>=overlay.size.x*.5 else 1)
+  if not from_mouse:
+   for slot in [i,1-i]:
+    if not touches.has(slot) or not touches[slot].down:i=slot;break
  if touches.has(i) and touches[i].down:
   input_drag.failure="A mão já está ocupada"
   return false
  var query:Array=picker.prepare_query()
  var hit:Dictionary=picker.cast(camera,pos,prefs.values["Tolerância (px)"],query)
- if grab_mode and "Camisola" not in removed:hit=Strap.nearby(picker,camera,pos,hit,query)
- if hit.is_empty() and grab_mode:
+ if should_grip and "Camisola" not in removed:hit=Strap.nearby(picker,camera,pos,hit,query)
+ if hit.is_empty() and should_grip:
   notice="Sem superfície para agarrar"
   input_drag.failure=notice
   return false
@@ -150,7 +206,7 @@ func begin_direct(id:int,pos:Vector2)->bool:
  direct_active=true
  active_hand=i
  fingers[id]=[i]
- attach_touch(i,hit,pos,false,initial)
+ attach_touch(i,hit,pos,false,initial,should_grip,from_mouse)
  if tool==Tool.MIRROR:
   var local:Vector3=rose.to_local(initial)
   var center_x:float=(wrist("PalmL").x+wrist("PalmR").x)*.5 if str(touches[i].name).begins_with("Mão") else wrist("Spine").x
@@ -165,9 +221,9 @@ func begin_direct(id:int,pos:Vector2)->bool:
     if anchors.has(opposite):
      other_pos=camera.unproject_position(anchors[opposite])
      other=picker.cast(camera,other_pos,prefs.values["Tolerância (px)"],picker.prepare_query())
-  if not other.is_empty() or not grab_mode:
+  if not other.is_empty() or not should_grip:
    fingers[id].append(1-i)
-   attach_touch(1-i,other,pos,true,other.get("p",mirrored))
+   attach_touch(1-i,other,pos,true,other.get("p",mirrored),should_grip,from_mouse)
  return true
 
 func move_direct(id:int,pos:Vector2)->void:
@@ -178,21 +234,24 @@ func move_direct(id:int,pos:Vector2)->void:
   var g:Dictionary=touches[i]
   var offset:Vector2=pos-g.start
   if g.mirror:offset.x=-offset.x
-  var projected:Variant=TouchDrag.project(camera,g.plane,g.screen_origin+offset)
+  var plane:Plane=g.plane
+  if g.desktop:plane.d+=float(depth_by_hand[i])-float(g.depth_origin)
+  var projected:Variant=TouchDrag.project(camera,plane,g.screen_origin+offset)
   if projected==null:
    input_drag.failure="Raio sem interseção com o plano"
    continue
   g.point=projected
   if g.strap and links.has(i) and not g.mirror:
-   update_garment_pull(i,g,offset)
+   g.pull_pixels=-offset.y+float(g.pull_bias)
+   update_garment_pull(i,g)
   if not links.has(i):
    g.physical=obstacle_motion(g.physical,g.point,.012)
    place_hand(i,{"p":g.physical,"n":g.normal})
    update_contact(i,g)
 
-func update_garment_pull(i:int,g:Dictionary,offset:Vector2)->void:
+func update_garment_pull(i:int,g:Dictionary)->void:
  var travel:=clampf(overlay.size.y*.22,105.,180.)
- g.pull=clampf((-offset.y-10.)/travel,0.,1.)
+ g.pull=clampf((float(g.pull_pixels)-10.)/travel,0.,1.)
  if g.pull>.06 and garment.state==GarmentPull.State.WORN:
   begin_garment(i,g.anchor)
  if not garment.owns(i):return
@@ -257,6 +316,8 @@ func clothing_action()->void:
 func cancel_direct()->void:
  for id in fingers.keys():end_direct(id,Vector2.ZERO,true)
  input_drag.captured.clear()
+ mouse_touch_down=false
+ desktop_slider_active=false
  touches.clear();direct_active=false
  prop_velocity=Vector3.ZERO
  prop_moving=false
@@ -272,24 +333,151 @@ func clear_input()->void:
 
 func _input(event:InputEvent)->void:
  if not is_node_ready():return
- if event is InputEventScreenTouch:
-  touch_display=true
-  if event.pressed and not event.canceled and garment_button.is_visible_in_tree() and not garment_button.disabled and garment_button.get_global_rect().has_point(event.position):
-   clothing_action();get_viewport().set_input_as_handled();return
- if event is InputEventMouse and event.device!=InputEvent.DEVICE_ID_EMULATION and fingers.is_empty():
-  touch_display=false
-  if direct_active:cancel_direct()
- if tool not in [Tool.CAMERA,Tool.CANDY] and (event is InputEventScreenTouch or event is InputEventScreenDrag):
+ if event is InputEventScreenTouch or event is InputEventScreenDrag:
+  if touch_display:route_touch(event)
+  return
+ if event is InputEventMouse:
+  if event.device==InputEvent.DEVICE_ID_EMULATION:return
+  if touch_display:
+   route_mouse_as_touch(event)
+   return
+  if tool!=Tool.CANDY:
+   if route_desktop(event):get_viewport().set_input_as_handled()
+   return
+ super(event)
+
+func route_touch(event:InputEvent)->void:
+ if event is InputEventScreenTouch and event.pressed and not event.canceled:
+  if garment_button.is_visible_in_tree() and not garment_button.disabled and garment_button.get_global_rect().has_point(event.position):
+   clothing_action()
+   get_viewport().set_input_as_handled()
+   return
+ if tool not in [Tool.CAMERA,Tool.CANDY]:
   var can_start:=not blocked(event.position) if event is InputEventScreenTouch else false
   if input_drag.capture(event,can_start,begin_direct,move_direct,end_direct):
    get_viewport().set_input_as_handled()
    return
+ super._input(event)
+
+func route_mouse_as_touch(event:InputEventMouse)->void:
+ # Um mouse pode testar o layout touchscreen no PC. A interface ainda recebe
+ # os eventos normais, e um toque emulado pelo sistema é filtrado em _input.
+ if event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT:
+  if event.pressed:
+   if blocked(event.position):return
+   mouse_touch_down=true
+  elif not mouse_touch_down:return
+  else:mouse_touch_down=false
+  var touch:=InputEventScreenTouch.new()
+  touch.index=ControlMode.MOUSE_TOUCH_ID
+  touch.position=event.position
+  touch.pressed=event.pressed
+  route_touch(touch)
+ elif event is InputEventMouseMotion and mouse_touch_down:
+  var drag:=InputEventScreenDrag.new()
+  drag.index=ControlMode.MOUSE_TOUCH_ID
+  drag.position=event.position
+  drag.relative=event.relative
+  route_touch(drag)
+
+func desktop_id()->int:
+ return ControlMode.MOUSE_GRIP_ID-active_hand if tool==Tool.MULTI else ControlMode.MOUSE_GRIP_ID
+
+func toggle_grip()->void:
+ if touch_display or tool in [Tool.CANDY,Tool.CAMERA]:
+  super()
+  return
+ var id:=desktop_id()
+ if fingers.has(id):
+  var slots:Array=fingers[id].duplicate()
+  end_direct(id,desktop_cursor,false)
+  for i in slots:
+   touches.erase(i)
+   hands[i].surface_sample={}
+  direct_active=not fingers.is_empty()
+ else:
+  begin_gesture(id,desktop_cursor,true,true)
+
+func route_desktop(event:InputEventMouse)->bool:
+ var on_ui:=blocked(event.position) or (rail.visible and rail.get_global_rect().has_point(event.position))
+ if event is InputEventMouseButton:
+  if not on_ui:desktop_cursor=event.position
+  if event.button_index==MOUSE_BUTTON_RIGHT:
+   if not event.pressed or not on_ui:_orbiting=event.pressed
+   return true
+  if event.pressed and event.button_index in [MOUSE_BUTTON_WHEEL_UP,MOUSE_BUTTON_WHEEL_DOWN]:
+   if on_ui:return false
+   zoom_size=clampf(zoom_size*(.88 if event.button_index==MOUSE_BUTTON_WHEEL_UP else 1.14),.43,3.4)
+   update_camera()
+   rebase_desktop_grips()
+   return true
+  if event.pressed and event.button_index==MOUSE_BUTTON_LEFT and tool!=Tool.CAMERA and not on_ui:
+   toggle_grip()
+   return true
+  return false
+ if event is InputEventMouseMotion:
+  if _orbiting:
+   desktop_cursor=event.position
+   yaw-=event.relative.x*.006
+   pitch=clampf(pitch+event.relative.y*.005,-1.05,1.05)
+   update_camera()
+   rebase_desktop_grips()
+   return true
+  if desktop_slider_active:return false
+  if fingers.has(desktop_id()):
+   desktop_cursor=event.position
+   move_direct(desktop_id(),desktop_cursor)
+  elif not on_ui and tool!=Tool.CAMERA:
+   desktop_cursor=event.position
+   move_hand(active_hand,desktop_cursor)
+  return not on_ui
+ return false
+
+func rebase_desktop_grips()->void:
+ for i in touches:
+  var g:Dictionary=touches[i]
+  if not g.desktop or not g.down:continue
+  var point:Vector3=g.point
+  g.plane=Plane(camera.global_basis.z,point)
+  g.screen_origin=camera.unproject_position(point)
+  g.start=desktop_cursor
+  g.pull_bias=g.pull_pixels
+  g.depth_origin=depth_by_hand[i]
+  # A segunda mão espelhada aplica seu deslocamento a partir da nova projeção.
+
+func apply_keyboard(dt:float)->void:
+ if touch_display:return
+ var depth_before:=depth
+ var pivot_before:=pivot_y
+ super(dt)
+ if not is_equal_approx(depth,depth_before):apply_desktop_depth(depth)
+ if not is_equal_approx(pivot_y,pivot_before):
+  update_camera()
+  rebase_desktop_grips()
+
+func adjust_depth(value:float)->void:
+ if touch_display:super(value)
+ else:apply_desktop_depth(-value)
+
+func apply_desktop_depth(value:float)->void:
+ depth=value
+ depth_by_hand[active_hand]=value
+ if tool==Tool.MIRROR:depth_by_hand[1-active_hand]=value
+ rail.set_value_no_signal(-value)
+ if fingers.has(desktop_id()):move_direct(desktop_id(),desktop_cursor)
+ if tool==Tool.MULTI:set_hand_target(active_hand,hand_world(active_hand))
+
+func _unhandled_input(event:InputEvent)->void:
+ if event is InputEventMouse:
+  if event.device==InputEvent.DEVICE_ID_EMULATION or touch_display or tool!=Tool.CANDY:return
  super(event)
 
 func reset_demo()->void:
  cancel_direct()
  garment.reset()
  super()
+ depth_by_hand=[.31,.31]
+ rail.set_value_no_signal(-depth)
 
 func blocked(pos:Vector2)->bool:
  for row in [toolbar,footer]:
@@ -416,7 +604,7 @@ func _physics_process(dt:float)->void:
    tags[i].visible=prefs.indicators and not g.detail.is_empty()
   feedback.text=notice
   for i in range(2):
-   if not touches.has(i):hands[i].enabled=false;hands[i].visible=false;tags[i].hide()
+   if not touches.has(i) and touch_display: hands[i].enabled=false;hands[i].visible=false;tags[i].hide()
  else:
   tags[0].text="D";tags[1].text="E"
  var gesture_mode:=touch_display and tool not in [Tool.CANDY,Tool.CAMERA]
@@ -428,6 +616,8 @@ func _physics_process(dt:float)->void:
   for tag in tags:tag.hide()
   reach_label.hide()
   feedback.text="Agarrar · toque em um alvo e arraste" if grab_mode else "Tocar · arraste a mão livremente"
+ if not touch_display and not direct_active and tool not in [Tool.CANDY,Tool.CAMERA]:
+  feedback.text="Clique para pegar/soltar · W/S profundidade · Q/E rotação · direito orbita · roda aproxima"
  if physics_readout.visible:
   var g:Dictionary=touches.get(active_hand,{})
   if g.is_empty():
