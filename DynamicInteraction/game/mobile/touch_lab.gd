@@ -16,9 +16,9 @@ var toolbar := HFlowContainer.new()
 var footer := HFlowContainer.new()
 var feedback := Label.new()
 var rail := VSlider.new()
-var side_button := Button.new()
+var side_button: Button
 var depth_label := Label.new()
-var grip_button := Button.new()
+var grip_button: Button
 var menu := OptionButton.new()
 var depth_by_hand := [.31,.31]
 var rotation_owner := {}
@@ -302,10 +302,7 @@ func _physics_process(dt:float)->void:
   elif last_tool!=Tool.MULTI:independent.clear()
  super(dt)
  if not touch_ui:return
- for i in held:
-  if held[i]=="candy":
-   candy.global_position=hands[i].global_position;candy.scale=Vector3.ONE*.24
-  else:set_reach_target(str(held[i]).right(1),skeleton.to_local(hands[i].global_position))
+ follow_held(dt)
  for i in range(2):
   var label:Label=tags[i]
   label.visible=hands[i].enabled and tool!=Tool.CAMERA
@@ -319,3 +316,9 @@ func _notification(what:int)->void:
  if what==NOTIFICATION_APPLICATION_FOCUS_OUT and is_node_ready():
   clear_input()
   for i in held.keys():release_grip(i)
+
+func follow_held(_dt:float)->void:
+ for i in held:
+  if held[i]=="candy":
+   candy.global_position=hands[i].global_position;candy.scale=Vector3.ONE*.24
+  else:set_reach_target(str(held[i]).right(1),skeleton.to_local(hands[i].global_position))

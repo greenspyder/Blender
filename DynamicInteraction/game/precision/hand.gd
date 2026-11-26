@@ -1,5 +1,6 @@
 extends Node3D
 
+var posed_detector:Variant=null
 var desired := Vector3.ZERO
 var last := Vector3.ZERO
 var duration := 0.0
@@ -55,6 +56,7 @@ func setup(direction:float)->void:
  mark.visible=false
 
 func advance(point:Vector3,dt:float,roll:float,debug_on:bool,detector)->Dictionary:
+ if posed_detector!=null:detector=posed_detector
  var empty:={"region":"","surface":point,"normal":Vector3.ZERO,"force":0.0}
  var old_fade:=fade
  fade=move_toward(fade,1.0 if enabled else 0.0,dt*7)

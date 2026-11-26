@@ -8,10 +8,10 @@ func check(ok:bool,name_:String)->void:
 func _initialize()->void:call_deferred("run")
 func press(i:int,p:Vector2,down:bool)->void:
  var e:=InputEventScreenTouch.new()
- e.index=i;e.position=p;e.pressed=down;root.push_input(e)
+ e.index=i;e.position=p;e.pressed=down;root.push_input(e,true)
 func drag(i:int,p:Vector2)->void:
  var e:=InputEventScreenDrag.new()
- e.index=i;e.position=p;root.push_input(e)
+ e.index=i;e.position=p;root.push_input(e,true)
 
 func run()->void:
  root.size=Vector2i(960,720)

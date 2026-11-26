@@ -1,8 +1,8 @@
 config_version=5
 
 [application]
-config/name="Rosé | Dynamic Interaction Mobile"
-run/main_scene="res://mobile_lab.tscn"
+config/name="Rosé | Body Mechanics 1.2.1"
+run/main_scene="res://mechanics_lab.tscn"
 config/features=PackedStringArray("4.2", "GL Compatibility")
 
 [display]
