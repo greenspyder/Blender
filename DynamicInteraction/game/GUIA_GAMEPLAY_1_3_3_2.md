@@ -1,5 +1,7 @@
 # ROSE 1.3.3.2 — Action Composer & Gameplay Interface
 
+> A interação com tecido evoluiu na 1.3.3.2.1. Consulte [o guia atualizado](GUIA_TECIDOS_1_3_3_2_1.md); os parágrafos sobre relevo visual abaixo documentam a versão anterior.
+
 ## Instalar e jogar no Android ou PC
 
 Extraia **o ZIP inteiro em uma pasta nova**, importe `project.godot` no Godot e execute o projeto (▶). A entrada agora é `gameplay/main.tscn`: a personagem aparece vestida, com Active Ragdoll ligado e sem diagnósticos. Não é necessário abrir uma bancada. O nome interno do projeto foi mantido para preservar o diretório `user://` e os dados anteriores.

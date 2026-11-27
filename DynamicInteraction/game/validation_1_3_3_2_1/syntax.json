@@ -1,0 +1,554 @@
+[
+  {
+    "file": "cloth/accessory.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "cloth/controller.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "cloth/material_profile.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "cloth/worn_layer.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "cloth/xpbd.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "direct/articulation_lab.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "direct/constraint_lab.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "direct/control_mode.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "direct/direct_lab.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "direct/drag_cube.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "direct/fabric.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "direct/fabric_palette.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "direct/fabric_profile.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "direct/garment_cage.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "direct/garment_pull.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "direct/grip_physics.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "direct/physics_meter.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "direct/preferences.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "direct/short_pull.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "direct/strap.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "direct/surface_picker.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "direct/touch_drag.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "dynamic/contact.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "dynamic/hand.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "dynamic/lab.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "dynamic/response.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "gameplay/action_composer.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "gameplay/action_library.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "gameplay/camera_overlay.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "gameplay/customization_manager.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "gameplay/external_stimulus_controller.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "gameplay/gameplay.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "gameplay/gameplay_ui_controller.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "gameplay/interaction_mode_manager.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "gameplay/visualization_manager.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "interaction.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "mechanics/body_lab.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "mechanics/hip_skin.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "mechanics/moving_contact.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "mechanics/posture.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "mechanics/soft_tissue.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "mobile/roteiro_teste.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "mobile/touch_lab.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "precision/contact.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "precision/hand.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "precision/lab.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "precision/pose_solver.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "precision/response.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "rig/active/active_body.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "rig/active/lab.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "rig/active/muscle_profile.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "rig/active/pose_editor.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "rig/active/pose_library.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "rig/active/pose_reference.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "rig/active/segment.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "rig/balance_lab.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "rig/character_profile.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "rig/full_body_lab.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "rig/full_body_pose.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "rig/ground_balance.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "rig/legacy_rose_skin.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "tests/active_cost_test.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "tests/active_integration_test.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "tests/active_ragdoll_test.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "tests/articulation_test.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "tests/balance_frame_test.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "tests/balance_test.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "tests/cloth_cost_test.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "tests/cloth_gameplay_test.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "tests/cloth_physics_test.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "tests/constraint_test.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "tests/direct_touch_test.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "tests/dynamic_pose_test.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "tests/dynamic_test.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "tests/fabric_profiles_test.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "tests/full_body_rig_test.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "tests/gameplay_cost_test.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "tests/gameplay_test.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "tests/gameplay_visual_check.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "tests/interaction_test.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "tests/mechanics_test.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "tests/mesh_integrity_test.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "tests/mobile_touch_test.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "tests/platform_controls_test.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "tests/precision_test.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "tests/responsiveness_test.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "tests/short_pull_test.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "tests/strap_test.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "tests/tissue_test.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "tools/export_rig_base.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "tests/cloth_contact_test.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  },
+  {
+    "file": "tests/cloth_visual_test.gd",
+    "passed": true,
+    "mixed_indentation": false,
+    "log": ""
+  }
+]

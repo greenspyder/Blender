@@ -1,0 +1,6 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+Qualidade -1 · 0.586 ms/tick host · física tecido 0.000 ms · reconstrução visual 0.000 ms
+Qualidade 0 · 3.579 ms/tick host · física tecido 2.081 ms · reconstrução visual 5.986 ms
+Qualidade 1 · 4.574 ms/tick host · física tecido 2.661 ms · reconstrução visual 6.462 ms
+Qualidade 2 · 5.651 ms/tick host · física tecido 3.300 ms · reconstrução visual 6.247 ms

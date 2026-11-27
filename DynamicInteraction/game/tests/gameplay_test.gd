@@ -129,9 +129,9 @@ func run()->void:
         for y in range(220,410,5):
             for x in range(410,590,5):
                 if g.interaction_mode.begin(g.camera,Vector2(x,y)):
-                    var mesh:MeshInstance3D=g.interaction_mode.selected
+                    var selected_physical:bool=g.cloth.selected_worn or g.cloth.selected_accessory
                     g.interaction_mode.drag(Vector2(x,y-100))
-                    check(float(g.interaction_mode.materials[mesh].get_shader_parameter("amount"))>0.,"toque altera tecido")
+                    check(selected_physical and (not g.cloth.worn.solver.hold.is_empty() or not g.cloth.accessory.solver.hold.is_empty()),"toque aplica vínculo ao tecido físico")
                     g.interaction_mode.release()
                     found=true
                     break
@@ -139,7 +139,7 @@ func run()->void:
         if found:break
     check(found,"toque encontra roupa vestida")
     g.interaction_mode.reset()
-    for material in g.interaction_mode.materials.values():check(is_zero_approx(material.get_shader_parameter("amount")),"restaurar vestuário")
+    check(g.cloth.worn.solver.hold.is_empty() and g.cloth.accessory.solver.hold.is_empty(),"restaurar vestuário")
     g.free()
     for suffix in ["-poses.cfg","-muscles.cfg"]:DirAccess.remove_absolute(test_path+suffix)
     print("Gameplay 1.3.3.2 · falhas ",failures.size()," ",failures)

@@ -1,9 +1,9 @@
-# ROSE 1.3.3.2 — Action Composer & Gameplay Interface
+# ROSE 1.3.3.2.1 — Cloth Physics Refinement
 
-Abra `game/project.godot` e execute o projeto. A entrada é a simulação com a personagem; ferramentas de desenvolvimento ficam ocultas por padrão.
+Abra `game/project.godot`. A entrada continua na simulação principal; Tecidos fica em Personalizações, numa seção recolhível. Ferramentas de desenvolvimento permanecem ocultas.
 
-[Baixar o projeto Godot completo](ROSE_1_3_3_2_Action_Composer_Gameplay.zip) · [Tutorial PC/Android](game/GUIA_GAMEPLAY_1_3_3_2.md) · [Validação](game/VALIDACAO_1_3_3_2.md)
+[Projeto Godot completo](ROSE_1_3_3_2_1_Cloth_Physics_Refinement.zip) · [Tutorial PC/Android](game/GUIA_TECIDOS_1_3_3_2_1.md) · [Validação e custos medidos](game/VALIDACAO_TECIDOS_1_3_3_2_1.md)
 
-`Rose_Mobile_Update.zip` também foi atualizado com o mesmo projeto completo. Ambos incluem modelos GLB, cenas, scripts, testes e tutoriais; não é necessário combinar pacotes anteriores. Os arquivos Blender de autoria continuam preservados nas demais pastas do repositório.
+`Rose_Mobile_Update.zip` contém o mesmo projeto completo atualizado. Não é necessário combinar pacotes. Os arquivos Blender e versões anteriores permanecem no repositório.
 
-Testes executados em Godot 4.7.2 no Linux, incluindo física real e renderização Compatibility. Validação em dispositivo Android físico continua pendente. BUBUROSTO será integrado na 1.3.4.
+Acessório têxtil com partículas XPBD e roupa com física secundária sobre skinning. Presets, controles por toque e PC, materiais originais e limites de cobertura preservados. Não há remoção de roupas nem autocolisão completa. Android físico ainda depende de validação manual; BUBUROSTO continua previsto para 1.3.4.

@@ -7,6 +7,8 @@ const CameraOverlay=preload("res://gameplay/camera_overlay.gd")
 const Interaction=preload("res://gameplay/interaction_mode_manager.gd")
 const Visualization=preload("res://gameplay/visualization_manager.gd")
 const UI=preload("res://gameplay/gameplay_ui_controller.gd")
+const Cloth=preload("res://cloth/controller.gd")
+var cloth:=Cloth.new()
 var composer:=Composer.new()
 var stimulus:=Stimulus.new()
 var customizations:=Customizations.new()
@@ -31,6 +33,10 @@ func _ready()->void:
     display_torque=false
     visualization.build(core)
     interaction_mode.configure(core.skin.get_parent(),core,profile)
+    add_child(cloth)
+    cloth.configure(self,interaction_mode.picker)
+    interaction_mode.cloth=cloth
+    interface.build_cloth_controls()
     customizations.load_all()
     interface.refresh_customizations()
     framing.apply(camera)
@@ -123,6 +129,9 @@ func _physics_process(dt:float)->void:
     super(dt)
     if not ready_to_pose:return
     stimulus.step(core,dt)
+    cloth.step(dt)
+    interface.cloth_readout.visible=performance_visible
+    if performance_visible:interface.cloth_readout.text="Tecidos · física %.2f ms · malha %.2f ms"%[cloth.physics_us*.001,cloth.render_us*.001]
     interface.status.text=Library.BASES[composer.base]+" · "+Muscle.STATES[core.state]+"\n"+composer.active_text()
     interface.active_list.text="Ativas: "+composer.active_text() if not composer.active_text().is_empty() else "Nenhuma ação complementar ativa"
     readout.visible=performance_visible

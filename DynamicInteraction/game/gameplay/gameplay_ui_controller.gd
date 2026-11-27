@@ -9,6 +9,7 @@ var status:Label
 var camera_box:VBoxContainer
 var restore_button:Button
 var camera_panel:PanelContainer
+var cloth_readout:Label
 var minimal:=false
 var mode_menu:OptionButton
 var base_menu:OptionButton
@@ -300,3 +301,33 @@ func sync_camera()->void:
         var widgets:Dictionary=camera_sliders[key]
         widgets.slider.set_value_no_signal(game.framing.get(key))
         widgets.label.text="%s · %.2f"%[widgets.title,game.framing.get(key)]
+
+func build_cloth_controls()->void:
+    cloth_readout=game.show_message(sections["Visualização"],"")
+    cloth_readout.hide()
+    var panel_:=VBoxContainer.new()
+    var parent:VBoxContainer=sections["Personalizações"]
+    game.button(parent,"Tecidos",func():panel_.visible=not panel_.visible)
+    parent.add_child(panel_);panel_.hide()
+    var sliders_:Dictionary={}
+    var labels_:Dictionary={}
+    var menu:OptionButton=game.dropdown(panel_,game.cloth.Profile.NAMES,func(index):
+        if index<4:game.cloth.set_profile(game.cloth.Profile.preset(index))
+        else:game.cloth.load_custom();game.cloth.set_profile(game.cloth.material)
+        for key in sliders_:
+            sliders_[key].set_value_no_signal(game.cloth.material.get(key))
+            labels_[key].text="%s · %.6f"%[game.cloth.Profile.FIELDS[key][0],game.cloth.material.get(key)])
+    menu.select(game.cloth.preset_index)
+    for field in game.cloth.Profile.FIELDS:
+        var bounds:Array=game.cloth.Profile.FIELDS[field]
+        var label:Label=game.show_message(panel_,"%s · %.6f"%[bounds[0],game.cloth.material.get(field)])
+        var slider:=HSlider.new();slider.min_value=bounds[1];slider.max_value=bounds[2];slider.step=bounds[3];slider.value=game.cloth.material.get(field);slider.custom_minimum_size.y=38
+        panel_.add_child(slider);sliders_[field]=slider;labels_[field]=label
+        slider.value_changed.connect(func(value):game.cloth.material.set(field,value);game.cloth.set_profile(game.cloth.material);menu.select(4);label.text="%s · %.6f"%[bounds[0],value])
+    var quality:OptionButton=game.dropdown(panel_,["Econômico","Equilibrado","Detalhado"],game.cloth.set_quality)
+    quality.select(game.cloth.quality)
+    var message:Label=game.show_message(panel_,"Vestuário: toque no pano ao lado ou na roupa.")
+    game.button(panel_,"Salvar tecido personalizado",func():
+        var error:int=game.cloth.save_custom()
+        message.text="Tecido salvo" if error==OK else error_string(error))
+    game.button(panel_,"Restaurar tecido Natural",func():game.cloth.set_profile(game.cloth.Profile.preset(1));menu.item_selected.emit(1);menu.select(1))
