@@ -1,5 +1,7 @@
 # ROSE 1.3.3.2.1 — Cloth Physics Refinement
 
+> Hotfix Cloth Response: a transferência das roupas e a identificação de costuras foram corrigidas. Consulte [medidas e limitações atualizadas](HOTFIX_CLOTH_RESPONSE.md).
+
 ## Começar
 
 Extraia o ZIP inteiro numa pasta nova, importe `project.godot` no Godot 4.7.2 e execute o projeto. A simulação principal, as ações simultâneas, o editor de poses e a câmera flutuante permanecem. Não foi adicionada uma bancada pública. Um pano num suporte ao lado da personagem permite interação com uma superfície independente na própria cena.

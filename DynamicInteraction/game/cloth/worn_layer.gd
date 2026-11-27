@@ -8,10 +8,13 @@ var bindings:Array=[]
 var local_offsets:=PackedVector3Array()
 var normals:=PackedVector3Array()
 var frames:Array[Basis]=[]
+var seams:Array=[]
 var radius:=.012
+var visual_peak:=0.
+var visual_rms:=0.
 var max_offset:=0.
 func build(source_picker,profile:Resource,length_:float)->void:
-    picker=source_picker;radius=length_*.014
+    picker=source_picker;radius=length_*.028
     var names:Array=profile.mesh_roles.upper_clothes+profile.mesh_roles.lower_clothes
     var points:=PackedVector3Array();var faces:=PackedInt32Array();var bins:Dictionary={}
     var cell:=length_*.18
@@ -40,12 +43,36 @@ func build(source_picker,profile:Resource,length_:float)->void:
             var normal:Vector3=(vertices[b]-vertices[a]).cross(vertices[c]-vertices[a])
             geometry[a]+=normal;geometry[b]+=normal;geometry[c]+=normal
             for e in [[a,b],[b,c],[c,a]]:
-                var key:=Vector2i(mini(e[0],e[1]),maxi(e[0],e[1]))
-                counts[key]=int(counts.get(key,0))+1
+                var pa:=Vector3i((vertices[e[0]]*100000.).round())
+                var pb:=Vector3i((vertices[e[1]]*100000.).round())
+                var key:String=(str(pa)+":"+str(pb)) if str(pa)<str(pb) else (str(pb)+":"+str(pa))
+                if not counts.has(key):counts[key]={"count":0,"vertices":[]}
+                counts[key].count+=1
+                counts[key].vertices.append_array(e)
         for key in counts:
-            if counts[key]==1:record.boundary[key.x]=true;record.boundary[key.y]=true
+            if counts[key].count==1:
+                for id in counts[key].vertices:record.boundary[id]=true
         for i in geometry.size():geometry[i]=geometry[i].normalized()
         record.rest_normals=geometry
+    var seam_groups:Dictionary={}
+    for record in records:
+        var vertices:PackedVector3Array=record.arrays[Mesh.ARRAY_VERTEX]
+        for i in vertices.size():
+            var key:String=str(record.surface.node.get_instance_id())+str(Vector3i((vertices[i]*100000.).round()))
+            if not seam_groups.has(key):seam_groups[key]=[]
+            seam_groups[key].append([record,i])
+    for group in seam_groups.values():
+        if group.size()<=1:continue
+        var locked:=false
+        var directions:Array[Vector3]=[]
+        for entry in group:
+            locked=locked or entry[0].boundary.has(entry[1])
+            var n:Vector3=entry[0].arrays[Mesh.ARRAY_NORMAL][entry[1]]
+            var unique:=true
+            for direction in directions:
+                if direction.dot(n)>.9999:unique=false;break
+            if unique:directions.append(n)
+        seams.append({"vertices":group,"locked":locked,"directions":directions})
     solver.build(points,faces);solver.targets=points.duplicate();solver.tether_radius=radius
     solver.areas.fill(0.)
     for record in records:
@@ -80,16 +107,19 @@ func update_targets()->void:
                 var w:float=s.weights[j]
                 basis.x+=b.x*w;basis.y+=b.y*w;basis.z+=b.z*w
         normals[i]=(basis*Vector3(representatives[i][2])).normalized()
-        frames[i]=basis.orthonormalized().inverse()
+        frames[i]=basis.inverse() if absf(basis.determinant())>.000001 else basis.orthonormalized().inverse()
 func step(h:float,colliders:Array)->void:
     update_targets()
     var before:=solver.position.duplicate()
+    # Elastic fitted support acts only on worn particles. Keep independent cloth unchanged.
+    for i in solver.position.size():
+        solver.velocity[i]+=(solver.targets[i]-solver.position[i])*450.*h
     solver.step(h,colliders)
     max_offset=0.
     for i in solver.position.size():
         var delta:=solver.position[i]-solver.targets[i]
         var n:=normals[i]
-        delta=delta.slide(n).limit_length(radius*.4)+n*clampf(delta.dot(n),0.,radius)
+        delta=(delta.slide(n).limit_length(radius*.75)+n*clampf(delta.dot(n),0.,radius)).limit_length(radius)
         solver.position[i]=solver.targets[i]+delta
         solver.velocity[i]=(solver.position[i]-before[i])/h
         max_offset=maxf(max_offset,delta.length())
@@ -98,6 +128,33 @@ func update_offsets()->void:
     for i in representatives.size():local_offsets[i]=frames[i]*(solver.position[i]-solver.targets[i])
 func render()->void:
     var meshes:Dictionary={}
+    visual_peak=0.
+    var square:=0.
+    var vertex_count:=0
+    for record in records:
+        var vertices:PackedVector3Array=record.arrays[Mesh.ARRAY_VERTEX].duplicate()
+        for i in vertices.size():
+            var bind:Array=record.binding[i];var ids:Vector3i=bind[0];var w:Vector3=bind[1]
+            if record.boundary.has(i):continue
+            var offset:Vector3=local_offsets[ids.x]*w.x+local_offsets[ids.y]*w.y+local_offsets[ids.z]*w.z
+            var normal:Vector3=record.arrays[Mesh.ARRAY_NORMAL][i]
+            var applied:Vector3=(normal*maxf(0.,offset.dot(normal))+offset.slide(normal)*.8).limit_length(radius)
+            vertices[i]+=applied
+        record.render_vertices=vertices
+    # UV/material splits share the same displacement; true open borders remain fitted.
+    for seam in seams:
+        var group:Array=seam.vertices
+        var offset:=Vector3.ZERO
+        if not seam.locked:
+            for entry in group:
+                offset+=Vector3(entry[0].render_vertices[entry[1]])-Vector3(entry[0].arrays[Mesh.ARRAY_VERTEX][entry[1]])
+            offset/=float(group.size())
+            if seam.directions.size()>1:
+                for pass_ in 3:
+                    for normal in seam.directions:offset-=Vector3(normal)*minf(0.,offset.dot(normal))
+        for entry in group:
+            var record:Dictionary=entry[0];var id:int=entry[1]
+            record.render_vertices[id]=Vector3(record.arrays[Mesh.ARRAY_VERTEX][id])+offset
     for record in records:
         var node:MeshInstance3D=record.surface.node
         if not meshes.has(node):
@@ -105,14 +162,11 @@ func render()->void:
             for i in record.original.get_blend_shape_count():mesh.add_blend_shape(record.original.get_blend_shape_name(i))
             meshes[node]=mesh
         var arrays:Array=record.arrays.duplicate()
-        var vertices:PackedVector3Array=arrays[Mesh.ARRAY_VERTEX].duplicate()
+        var vertices:PackedVector3Array=record.render_vertices
         for i in vertices.size():
-            var bind:Array=record.binding[i];var ids:Vector3i=bind[0];var w:Vector3=bind[1]
-            if record.boundary.has(i):continue
-            var offset:Vector3=local_offsets[ids.x]*w.x+local_offsets[ids.y]*w.y+local_offsets[ids.z]*w.z
-            var normal:Vector3=record.arrays[Mesh.ARRAY_NORMAL][i]
-            # Preserve fitted boundaries and prevent secondary movement into the original surface.
-            vertices[i]+=normal*maxf(0.,offset.dot(normal))+offset.slide(normal)*.15
+            var applied:Vector3=vertices[i]-Vector3(record.arrays[Mesh.ARRAY_VERTEX][i])
+            visual_peak=maxf(visual_peak,applied.length())
+            square+=applied.length_squared();vertex_count+=1
         arrays[Mesh.ARRAY_VERTEX]=vertices
         var normals_:=PackedVector3Array();normals_.resize(vertices.size())
         var indices:PackedInt32Array=arrays[Mesh.ARRAY_INDEX]
@@ -126,5 +180,6 @@ func render()->void:
         mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays,record.original.surface_get_blend_shape_arrays(record.surface.surface_index))
         mesh.surface_set_material(mesh.get_surface_count()-1,record.material)
     for node in meshes:node.mesh=meshes[node]
+    visual_rms=sqrt(square/maxi(1,vertex_count))
 func reset()->void:
     solver.release();solver.position=solver.targets.duplicate();solver.velocity.fill(Vector3.ZERO);local_offsets.fill(Vector3.ZERO)

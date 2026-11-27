@@ -6,7 +6,7 @@ import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-LOGS = ROOT / 'validation_1_3_3_2_1'
+LOGS = ROOT / 'validation_cloth_hotfix'
 LOGS.mkdir(exist_ok=True)
 
 def run(args, env):

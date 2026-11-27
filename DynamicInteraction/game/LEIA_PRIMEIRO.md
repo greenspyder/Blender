@@ -11,3 +11,5 @@ As instruções antigas de acesso a bancadas são históricas. A experiência pr
 
 - [Tecidos físicos e personalizações](GUIA_TECIDOS_1_3_3_2_1.md)
 - [Validação dos tecidos](VALIDACAO_TECIDOS_1_3_3_2_1.md)
+
+- [Hotfix da resposta das roupas: diagnóstico e validação](HOTFIX_CLOTH_RESPONSE.md)
