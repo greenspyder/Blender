@@ -1,6 +1,11 @@
 extends "res://rig/balance_lab.gd"
 const Core=preload("res://rig/active/active_body.gd")
 const Muscle=preload("res://rig/active/muscle_profile.gd")
+const Pose=preload("res://rig/active/pose_reference.gd")
+const PoseLibrary=preload("res://rig/active/pose_library.gd")
+const PoseEditor=preload("res://rig/active/pose_editor.gd")
+enum ReferenceMode { AUTOMATIC, CUSTOM, FREE }
+const REFERENCE_MODES:=["Automático","Personalizado","Livre"]
 const CUSTOM_PATH:="user://active_ragdoll.cfg"
 const EXTRA_MOVES:=["Sentar","Queda controlada"]
 const NAMES:=["Rigidez (s⁻²)","Amortecimento relativo","Força máxima (N)","Torque máximo (N·m)","Escala dos limites","Recuperação (/s)"]
@@ -34,6 +39,24 @@ var previous_iterations:float=-1.
 var previous_penetration:float
 var previous_hz:int
 var physical_support:="Sem apoio"
+var mode:=ReferenceMode.AUTOMATIC
+var pose_reference:=Pose.new()
+var pose_library:=PoseLibrary.new()
+var pose_draft:Dictionary={}
+var pose_title:="Postura atual"
+var pose_library_error:=OK
+var pose_editor:PoseEditor
+var reference_menu:OptionButton
+var move_menu:OptionButton
+var automatic_movement:=0
+var capture_on_release:=false
+var transition_seconds:=.60
+var transition_from:Dictionary={}
+var transition_elapsed:=0.
+var transition_duration:=.60
+var free_pose:Dictionary={}
+var reference_strength:=1.
+var position_support:=1.
 
 func _ready()->void:
     if muscles==null or not muscles.valid():
@@ -73,6 +96,10 @@ func _ready()->void:
     Engine.physics_ticks_per_second=muscles.physics_hz
     configure_space()
     create_seat()
+    pose_reference.configure(solver,muscles,balance.length_scale)
+    pose_library_error=pose_library.load_all()
+    pose_editor.update_saved()
+    if pose_library_error!=OK:pose_editor.message.text="Arquivo de poses indisponível · "+error_string(pose_library_error)
 
 func configure_space()->void:
     if ProjectSettings.get_setting("physics/3d/physics_engine","DEFAULT")=="Jolt Physics":return
@@ -101,12 +128,17 @@ func create_seat()->void:
     seat.visible=false
     shape.disabled=true
 
+func set_seat_visible(value:bool)->void:
+    seat.visible=value
+    seat.get_child(0).set_deferred("disabled",not value)
+
 func select_move(value:int)->void:
+    automatic_movement=value
     movement=value
+    move_menu.select(value)
     elapsed=0.
     fall_started=false
-    seat.visible=value==6
-    seat.get_child(0).set_deferred("disabled",value!=6)
+    set_seat_visible(value==6)
     if value==7:select_state(2)
 
 func select_state(value:int)->void:
@@ -143,18 +175,31 @@ func perturb()->void:
     trunk.apply_central_impulse(Vector3.BACK*trunk.mass*sqrt(balance.gravity*balance.length_scale)*.95)
 
 func add_controls(content:VBoxContainer)->void:
-    show_message(content,"Active Ragdoll · 1.3.3")
+    show_message(content,"Active Ragdoll · 1.3.3.1")
     button(content,"Voltar à tela inicial",func():
         get_tree().change_scene_to_file(ProjectSettings.get_setting("application/run/main_scene")))
     readout=show_message(content,"")
-    dropdown(content,MOVES+EXTRA_MOVES,select_move)
+    reference_menu=dropdown(content,REFERENCE_MODES,select_reference_mode)
+    move_menu=dropdown(content,MOVES+EXTRA_MOVES,select_move)
     state_menu=dropdown(content,Muscle.STATES,select_state)
     state_menu.select(initial_state)
+    button(content,"Editor de posturas",toggle_pose_editor)
+    pose_editor=PoseEditor.new()
+    content.add_child(pose_editor)
+    pose_editor.build(self)
+    pose_editor.hide()
+    var advanced:=VBoxContainer.new()
+    button(content,"Músculos e diagnóstico",func():advanced.visible=not advanced.visible)
+    content.add_child(advanced)
+    advanced.hide()
+    add_advanced_controls(advanced)
+
+func add_advanced_controls(content:VBoxContainer)->void:
     preset_menu=dropdown(content,Muscle.PRESETS,apply_preset)
     preset_menu.select(1)
     show_message(content,"Arraste um segmento da personagem para aplicar força. Solte para liberar.")
     button(content,"Perturbar o tronco",perturb)
-    button(content,"Recuperar em pé",func():select_move(0);select_state(4))
+    button(content,"Recuperar em pé",recover_standing)
     button(content,"Reiniciar ensaio",func():get_tree().reload_current_scene())
     button(content,"Voltar ao equilíbrio 1.3.2",func():get_tree().change_scene_to_file("res://rig/balance_lab.tscn"))
     parameter(content,"Inclinação do chão (°)",-12,12,1,0,func(v):$Ground.rotation.x=deg_to_rad(v))
@@ -171,7 +216,7 @@ func add_controls(content:VBoxContainer)->void:
         controls.append(slider)
         slider.value_changed.connect(edit_value.bind(i))
     sync_controls()
-    button(content,"Salvar personalizado",save_custom)
+    button(content,"Salvar preset muscular",save_custom)
     checkbox(content,"Esqueleto físico",true,func(v):draw.bone=v)
     checkbox(content,"Referência",true,func(v):draw_reference=v)
     checkbox(content,"Limites do grupo",true,func(v):draw.limit=v)
@@ -204,6 +249,7 @@ func edit_value(value:float,index:int)->void:
     custom=muscles.duplicate(true)
     preset_menu.select(3)
     if index==4:refresh_limits()
+    pose_editor.refresh()
     sync_controls()
 
 func refresh_limits()->void:
@@ -215,7 +261,9 @@ func apply_preset(index:int)->void:
         for i in Muscle.GROUPS.size():
             muscles.stiffness[i]=clampf(muscles.stiffness[i]*(1.45 if index==0 else .55),5,240)
     core.settings=muscles
+    pose_reference.muscles=muscles
     refresh_limits()
+    pose_editor.refresh()
     sync_controls()
 
 func save_custom(path:String=CUSTOM_PATH)->void:
@@ -242,10 +290,16 @@ func _physics_process(dt:float)->void:
     if not ready_to_pose:return
     var start:=Time.get_ticks_usec()
     var steps:=maxi(1,ceili(dt*120.-.00001))
-    for i in steps:tick(dt/steps)
+    for i in steps:tick_reference(dt/steps)
     if drag_id!=-2 and drag_role.is_empty():pick_drag()
     var borne_weight:=clampf(grab_force.y/(profile.mass_kg*balance.gravity),0.,1.)
-    core.drive(dt,balance.contacts,1.-borne_weight)
+    var wanted_strength:=.12 if mode==ReferenceMode.FREE else 1.
+    reference_strength=move_toward(reference_strength,wanted_strength,dt/maxf(transition_seconds,.15))
+    var wanted_support:=1.
+    if mode==ReferenceMode.FREE:wanted_support=0.
+    elif mode==ReferenceMode.CUSTOM:wanted_support=custom_support()
+    position_support=move_toward(position_support,wanted_support,dt/maxf(transition_seconds,.15))
+    core.drive(dt,balance.contacts,(1.-borne_weight)*position_support,reference_strength)
     pull_segment(dt)
     core.present()
     tick_us=Time.get_ticks_usec()-start
@@ -271,7 +325,10 @@ func _physics_process(dt:float)->void:
     var stable:=hull.size()>2 and Geometry2D.is_point_in_polygon(Vector2(core.com.x,core.com.z),hull)
     physical_support="COM dentro da base" if stable else ("Sem contato" if points.is_empty() else "COM fora da base")
     var warning:=" · junta afastada" if core.max_gap>balance.length_scale*.035 else ""
-    readout.text="%s · %s%s · %d pé(s)\nErro RMS %.1f cm · desvio de junta %.1f mm\nControle %.2f ms/tick"%[Muscle.STATES[core.state],physical_support,warning,feet,core.rms*100.,core.max_gap*1000.,mean_ms]
+    var automatic_names:=MOVES+EXTRA_MOVES
+    var current_pose:String=automatic_names[movement] if mode==ReferenceMode.AUTOMATIC else (pose_title if mode==ReferenceMode.CUSTOM else "Última referência")
+    readout.text="%s · %s\n%s\n%s%s · %d pé(s) · %d apoio(s)\nErro RMS %.1f cm · %.2f ms/tick"%[
+        REFERENCE_MODES[mode],Muscle.STATES[core.state],current_pose,physical_support,warning,feet,core.active_support.size(),core.rms*100.,mean_ms]
 
 func draw_pose()->void:
     lines.clear_surfaces()
@@ -349,9 +406,9 @@ func _input(event:InputEvent)->void:
     if drag_id==-2:return
     var pixel:Vector2
     if event is InputEventScreenTouch and event.index==drag_id and not event.pressed:
-        end_drag()
+        release_drag(not event.canceled)
     elif event is InputEventMouseButton and drag_id==-1 and event.button_index==MOUSE_BUTTON_LEFT and not event.pressed:
-        end_drag()
+        release_drag(true)
     elif event is InputEventScreenDrag and event.index==drag_id:pixel=event.position
     elif event is InputEventMouseMotion and drag_id==-1:pixel=event.position
     else:return
@@ -359,6 +416,11 @@ func _input(event:InputEvent)->void:
         var point=drag_plane.intersects_ray(camera.project_ray_origin(pixel),camera.project_ray_normal(pixel))
         if point!=null:drag_goal=point
     get_viewport().set_input_as_handled()
+
+func release_drag(allow_capture:bool)->void:
+    var capture:=allow_capture and mode==ReferenceMode.CUSTOM and capture_on_release and not drag_role.is_empty()
+    end_drag()
+    if capture:capture_custom_pose(true)
 
 func end_drag()->void:
     drag_role=""
@@ -384,3 +446,141 @@ func pull_segment(dt:float)->void:
     b.apply_torque(torque)
     grab_force=force
     grab_torque=torque
+
+func toggle_pose_editor()->void:
+    pose_editor.visible=not pose_editor.visible
+    if pose_editor.visible and pose_draft.is_empty():
+        pose_draft=pose_reference.capture(reference_world_bone,seat.visible)
+        pose_editor.refresh()
+
+func reference_world_bone(role:String)->Transform3D:
+    return sk.global_transform*solver.pose(role)
+
+func start_pose_transition()->void:
+    transition_from=pose_reference.snapshot()
+    transition_elapsed=0.
+    transition_duration=transition_seconds
+
+func select_reference_mode(value:int)->void:
+    if value==mode:return
+    start_pose_transition()
+    if value==ReferenceMode.FREE:
+        free_pose=pose_reference.capture(reference_world_bone,seat.visible)
+    elif value==ReferenceMode.CUSTOM and pose_draft.is_empty():
+        pose_draft=pose_reference.capture(reference_world_bone,seat.visible)
+    mode=value
+    reference_menu.select(mode)
+    move_menu.visible=mode==ReferenceMode.AUTOMATIC
+    if mode==ReferenceMode.AUTOMATIC:
+        balance.contacts.clear()
+        balance.velocity=0.
+        balance.height=$Model.position.y
+        select_move(automatic_movement)
+    elif mode==ReferenceMode.CUSTOM:set_seat_visible(pose_draft.seat)
+    pose_editor.refresh()
+
+func capture_custom_pose(from_body:bool)->void:
+    if not ready_to_pose:return
+    var get_bone:Callable=core.physical_pose if from_body else reference_world_bone
+    pose_draft=pose_reference.capture(get_bone,seat.visible)
+    pose_title="Postura capturada" if from_body else "Referência copiada"
+    select_reference_mode(ReferenceMode.CUSTOM)
+    start_pose_transition()
+    set_seat_visible(pose_draft.seat)
+    pose_editor.refresh()
+
+func edit_joint(role:String,axis:int,value:float)->void:
+    if not ready_to_pose:return
+    select_reference_mode(ReferenceMode.CUSTOM)
+    var angles:Vector3=pose_draft.angles[role]
+    angles[axis]=value
+    pose_draft.angles[role]=pose_reference.clamp_angles(role,angles)
+    edit_pose()
+
+func edit_pelvis(axis:int,value:float)->void:
+    if not ready_to_pose:return
+    select_reference_mode(ReferenceMode.CUSTOM)
+    var travel:Vector3=pose_draft.travel
+    travel[axis]=value
+    pose_draft.travel=travel.clamp(Pose.TRAVEL_MIN,Pose.TRAVEL_MAX)
+    edit_pose()
+
+func edit_seat(value:bool)->void:
+    if not ready_to_pose:return
+    select_reference_mode(ReferenceMode.CUSTOM)
+    pose_draft.seat=value
+    set_seat_visible(value)
+    edit_pose()
+
+func edit_pose()->void:
+    pose_title="Postura editada"
+    start_pose_transition()
+    pose_editor.refresh()
+
+func save_pose(title:String)->Error:
+    if pose_library_error!=OK:return pose_library_error
+    var result:=pose_library.save_pose(title,pose_draft)
+    if result==OK:pose_title=title.strip_edges()
+    return result
+
+func load_pose(title:String)->bool:
+    if not pose_library.entries.has(title):return false
+    pose_draft=pose_library.entries[title].duplicate(true)
+    pose_title=title
+    select_reference_mode(ReferenceMode.CUSTOM)
+    start_pose_transition()
+    set_seat_visible(pose_draft.seat)
+    pose_editor.refresh()
+    return true
+
+func restore_original()->void:
+    select_reference_mode(ReferenceMode.AUTOMATIC)
+    pose_editor.hide()
+
+func recover_standing()->void:
+    restore_original()
+    select_move(0)
+    select_state(4)
+
+func tick_reference(dt:float)->void:
+    if mode==ReferenceMode.AUTOMATIC:
+        tick(dt)
+    else:
+        $Model.position=Vector3.ZERO
+        var target:=pose_draft if mode==ReferenceMode.CUSTOM else free_pose
+        pose_reference.apply(target)
+    if not transition_from.is_empty():
+        transition_elapsed+=dt
+        var fraction:=clampf(transition_elapsed/transition_duration,0.,1.)
+        pose_reference.blend_from(transition_from,smoothstep(0.,1.,fraction))
+        if fraction>=1.:transition_from.clear()
+    if mode!=ReferenceMode.AUTOMATIC:
+        solver.calculate_mass()
+        for side in ["l","r"]:
+            var sole:Vector3=sk.to_global(solver.pose("foot_"+side)*profile.sole_offset)
+            balance.sense(get_world_3d().direct_space_state,side,sole,false)
+            balance.verify_support(side,sole)
+
+func custom_support()->float:
+    # A sustentação cede quando a referência desloca o peso para fora dos apoios.
+    var points:=PackedVector2Array()
+    for role in core.active_support:
+        var body:RigidBody3D=core.bodies[role]
+        var seated:bool=role=="pelvis" and seat.visible and body.get("support_body")==seat
+        if not role.begins_with("foot_") and not seated:continue
+        var center:Vector3=body.get("support_point")
+        var support_shape:Vector2=Vector2(profile.sole_half_width,profile.sole_half_length)*balance.length_scale
+        if seated:support_shape=Vector2(.13,.10)*balance.length_scale
+        for x in [-1.,1.]:
+            for z in [-1.,1.]:
+                points.append(Vector2(center.x,center.z)+support_shape*Vector2(x,z))
+    if points.is_empty():return 0.
+    var hull:=Geometry2D.convex_hull(points)
+    var target:=sk.to_global(solver.center_of_mass)
+    var xy:=Vector2(target.x,target.z)
+    if Geometry2D.is_point_in_polygon(xy,hull):return 1.
+    var distance:=INF
+    for i in range(1,hull.size()):
+        var closest:=Geometry2D.get_closest_point_to_segment(xy,hull[i-1],hull[i])
+        distance=minf(distance,xy.distance_to(closest))
+    return 1.-smoothstep(.08,.28,distance/balance.length_scale)

@@ -1,5 +1,7 @@
 # ROSE 1.3.3 · Active Ragdoll
 
+A versão 1.3.3.1 tem um [editor de referências posturais](GUIA_POSTURAS_1_3_3_1.md).
+
 ## Abrir e experimentar
 
 Extraia o ZIP inteiro e importe `project.godot`. No editor, toque em **Executar projeto (▶)**. Na barra inferior do jogo, toque em **Active Ragdoll**. Para voltar, use **Voltar à tela inicial** no painel da bancada. A cena também pode ser executada diretamente em `rig/active/lab.tscn`.

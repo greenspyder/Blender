@@ -136,7 +136,7 @@ func measure()->void:
   if b.grounded:active_support.append(role)
  com/=profile.mass_kg
 
-func drive(dt:float,stance:Dictionary,support_fraction:float=1.)->void:
+func drive(dt:float,stance:Dictionary,support_fraction:float=1.,reference_strength:float=1.)->void:
  measure()
  recovery_phase=move_toward(recovery_phase,1.,dt*0.65)
  var error_sq:=0.
@@ -149,7 +149,7 @@ func drive(dt:float,stance:Dictionary,support_fraction:float=1.)->void:
  for role in bodies:
   var b:Segment=bodies[role]
   var g:=settings.group(role)
-  var strength:float=settings.state_strength[state]
+  var strength:float=settings.state_strength[state]*reference_strength
   if state==4:strength*=smoothstep(0.,1.,recovery_phase)
   gain[role]=move_toward(gain[role],strength,dt*settings.recovery_speed[g])
   var authority:=clampf(gain[role],0.,1.)
