@@ -1,0 +1,8 @@
+[gd_scene load_steps=4 format=3]
+[ext_resource type="PackedScene" path="res://rig/balance_lab.tscn" id="1"]
+[ext_resource type="Script" path="res://rig/active/lab.gd" id="2"]
+[ext_resource type="Resource" path="res://rig/active/natural.tres" id="3"]
+[node name="ActiveRagdollLab" instance=ExtResource("1")]
+script = ExtResource("2")
+muscles = ExtResource("3")
+panel_title = "Bancada de física corporal"

@@ -12,6 +12,7 @@ const JOINTS:={
 const PASSES:={"pelvis":"Pelve","spine":"Coluna","head":"Cabeça","arms":"IK dos braços","legs":"Cadeia das pernas","feet":"IK de apoio"}
 const COLORS:={"bone":Color("#bce9f1"),"com":Color("#ffd681"),"mass":Color("#d6a1ed"),"ik":Color("#74e6b1"),"limit":Color("#f38985")}
 
+@export var panel_title:="Rosé · Corpo inteiro"
 @export var profile:Profile
 @onready var camera:Camera3D=$Camera3D
 var sk:Skeleton3D
@@ -77,7 +78,7 @@ func create_panel()->VBoxContainer:
  var content:=VBoxContainer.new()
  content.size_flags_horizontal=Control.SIZE_EXPAND_FILL
  scroll.add_child(content)
- show_message(content,"Rosé · Corpo inteiro")
+ show_message(content,panel_title)
  var back:=Button.new()
  back.text="Voltar às articulações"
  back.custom_minimum_size.y=42.

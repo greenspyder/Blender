@@ -28,6 +28,11 @@ func _ready()->void:
  solver.calculate_mass()
 
 func add_controls(content:VBoxContainer)->void:
+ var active_button:=Button.new()
+ active_button.text="Active Ragdoll · 1.3.3"
+ active_button.custom_minimum_size.y=44
+ content.add_child(active_button)
+ active_button.pressed.connect(func():get_tree().change_scene_to_file("res://rig/active/lab.tscn"))
  show_message(content,"Equilíbrio e contato com o chão")
  readout=show_message(content,"")
  dropdown(content,MOVES,func(index):movement=index;elapsed=0.)
@@ -109,10 +114,14 @@ func tick(dt:float)->void:
   var normal:Vector3=(sk.global_basis.inverse()*balance.foot_normal(side,dt)).normalized()
   var basis:=Basis(Quaternion(Vector3.UP,normal))*rest_basis
   solver.foot_goals[side]=Transform3D(basis,sk.to_local(target.point))
+ adjust_reference(dt)
  solver.apply(preview,Vector2.ONE,dt)
  for side in ["l","r"]:
   balance.verify_support(side,sk.to_global(solver.pose("foot_"+side)*profile.sole_offset))
  balance.integrate(sk.to_global(solver.center_of_mass),dt)
+
+func adjust_reference(_dt:float)->void:
+ pass
 
 func _physics_process(dt:float)->void:
  if not ready_to_pose:return
