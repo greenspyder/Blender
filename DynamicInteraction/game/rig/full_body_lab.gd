@@ -112,6 +112,11 @@ func checkbox(content:VBoxContainer,label_:String,value:bool,change:Callable)->v
 
 func add_controls(content:VBoxContainer)->void:
  readout=show_message(content,"")
+ var balance_button:=Button.new()
+ balance_button.text="Equilíbrio e chão · 1.3.2"
+ balance_button.custom_minimum_size.y=44
+ content.add_child(balance_button)
+ balance_button.pressed.connect(func():get_tree().change_scene_to_file("res://rig/balance_lab.tscn"))
  dropdown(content,POSES,choose_pose)
  show_message(content,"Apoio de referência")
  support_menu=dropdown(content,["Ambos os pés","Pé esquerdo","Pé direito","Livre"],func(index):

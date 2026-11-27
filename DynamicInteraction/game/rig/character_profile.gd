@@ -52,6 +52,15 @@ const MASS_SEGMENTS := [
 }
 @export_range(1.,20.,.1) var pose_response:=8.
 
+@export_group("Equilíbrio e contato · fatores do comprimento da perna")
+@export_range(.01,.12,.005) var contact_band:=.045
+@export_range(.03,.16,.005) var sole_half_width:=.075
+@export_range(.07,.24,.005) var sole_half_length:=.14
+@export_range(7.,24.,.5) var support_frequency:=15.
+@export_range(.4,1.8,.05) var support_damping:=1.
+@export_range(0.,1.,.05) var balance_gain:=.65
+@export_flags_3d_physics var ground_mask:=1
+
 func resolve(sk:Skeleton3D)->Dictionary:
  var ids:Dictionary={}
  for role in bones:ids[role]=sk.find_bone(bones[role])

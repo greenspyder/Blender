@@ -1,0 +1,14 @@
+[gd_scene load_steps=4 format=3]
+[ext_resource type="PackedScene" path="res://rig/full_body_lab.tscn" id="1"]
+[ext_resource type="Script" path="res://rig/balance_lab.gd" id="2"]
+[sub_resource type="BoxShape3D" id="box"]
+size = Vector3(8, 0.2, 8)
+
+[node name="BalanceLab" instance=ExtResource("1")]
+script = ExtResource("2")
+
+[node name="Piso" type="StaticBody3D" parent="Ground"]
+
+[node name="Colisao" type="CollisionShape3D" parent="Ground/Piso"]
+shape = SubResource("box")
+position = Vector3(0,-0.1,0)

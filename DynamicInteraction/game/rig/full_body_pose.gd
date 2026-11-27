@@ -10,6 +10,8 @@ var arms:=Posture.new()
 var enabled:Dictionary={"pelvis":true,"spine":true,"head":true,"arms":true,"legs":true,"feet":true}
 var smoothed:Dictionary={}
 var contacts:Dictionary={}
+# Alvos em espaço do esqueleto fornecidos pela bancada física.
+var foot_goals:Dictionary={}
 var support_weights:=Vector2.ZERO
 var masses:Array[Dictionary]=[]
 var center_of_mass:=Vector3.ZERO
@@ -103,6 +105,13 @@ func solve_leg(side:String)->void:
  var pelvis_reference:=pose("pelvis").basis*sk.get_bone_global_rest(bones.pelvis).basis.inverse()
  var floor_offset:Vector3=smoothed.get("target_"+side,Vector3.ZERO)
  var target:=rest_foot.origin+floor_offset
+ var sole_basis:=rest_foot.basis
+ var desired_sole:Vector3=rest_foot*profile.sole_offset+floor_offset
+ if foot_goals.has(side):
+  var goal_pose:Transform3D=foot_goals[side]
+  sole_basis=goal_pose.basis
+  desired_sole=goal_pose.origin
+  target=desired_sole-sole_basis*profile.sole_offset
  var requested:=target-hip
  var low:=Posture.reach_for_bend(l1,l2,profile.knee_limit.y)
  var high:=Posture.reach_for_bend(l1,l2,profile.knee_limit.x)
@@ -120,14 +129,13 @@ func solve_leg(side:String)->void:
  knee=pose(shin_role).origin
  arms.align(sk,bones[shin_role],pose(foot_role).origin-knee,hip+dir*distance-knee)
  var ankle:=pose(foot_role)
- var goal:=rest_foot.basis.orthonormalized().get_rotation_quaternion()
+ var goal:=sole_basis.orthonormalized().get_rotation_quaternion()
  var current:=ankle.basis.orthonormalized().get_rotation_quaternion()
  var angle:=current.angle_to(goal)
  var blend:=1. if angle<.001 else minf(1.,deg_to_rad(profile.ankle_limit.x)/angle)
  ankle.basis=Basis(current.slerp(goal,blend))
  sk.set_bone_global_pose(bones[foot_role],ankle)
  var sole:Vector3=ankle*profile.sole_offset
- var desired_sole:Vector3=rest_foot*profile.sole_offset+floor_offset
  contacts[side]={
   "target":desired_sole, "actual":sole, "knee":knee,
   "limited":sole.distance_to(desired_sole)>.025,
