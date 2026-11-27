@@ -5,7 +5,9 @@ signal dressed
 enum State { WORN, PULLING, RETURNING, FINISHING, HELD, FALLING, RESTING, DRESSING }
 const FABRIC=preload("res://direct/garment_pull.gdshader")
 const Cage=preload("res://direct/garment_cage.gd")
-const DRESS_NODES=["Dress","Ribbon"]
+var part_names:=["Dress","Ribbon"]
+var whole_piece:="Dress"
+var pull_rate:=1.42
 const FLOOR_Y:=Cage.FLOOR
 
 var state:=State.WORN
@@ -33,7 +35,7 @@ var grip_target:=Vector3.ZERO
 
 func configure(model:Node,picker)->void:
  pull_picker=picker
- for part in DRESS_NODES:
+ for part in part_names:
   var mesh:MeshInstance3D=model.find_child(part,true,false)
   if mesh:sources.append(mesh)
 
@@ -63,7 +65,7 @@ func begin(slot:int,point:Vector3,body_basis:Basis,shoulder_side:float)->bool:
   for j in range(0,indices.size(),3):
    cage.triangle(mapping[indices[j]],mapping[indices[j+1]],mapping[indices[j+2]])
   records.append({"surface":s,"local":posed,"mapping":mapping})
- connect_ribbon(records)
+ connect_trims(records)
  cage.pin_neighbors()
  anchors.resize(cage.rest.size())
  texels.resize(cage.rest.size()*4)
@@ -79,20 +81,20 @@ func begin(slot:int,point:Vector3,body_basis:Basis,shoulder_side:float)->bool:
  update_render()
  return true
 
-func connect_ribbon(records:Array)->void:
- var dress:Dictionary={}
- var bow:Dictionary={}
+func connect_trims(records:Array)->void:
+ var fabric:Dictionary={}
+ var trims:Dictionary={}
  for record in records:
   for id in record.mapping:
-   if record.surface.node.name=="Dress":dress[id]=true
-   else:bow[id]=true
- # O laço tem topologia independente. Costure-o à frente da mesma peça.
- for id in bow:
-  if dress.has(id):continue
+   if record.surface.node.name==whole_piece:fabric[id]=true
+   else:trims[id]=true
+ # Peças de topologia independente acompanham a mesma malha física.
+ for id in trims:
+  if fabric.has(id):continue
   var rest_point:Vector3=cage.rest[id]
   var closest:=INF
   var nearest:=-1
-  for other in dress:
+  for other in fabric:
    var distance:=rest_point.distance_squared_to(cage.rest[other])
    if distance<closest:
     closest=distance
@@ -190,7 +192,7 @@ func advance(dt:float)->void:
  match state:
   State.PULLING,State.FINISHING:
    var target:=1. if state==State.FINISHING else demand
-   progress=move_toward(progress,target,dt*1.42)
+   progress=move_toward(progress,target,dt*pull_rate)
    grip_target=path(progress)
    write_guide(progress)
    guide=.085+.07*smoothstep(.63,1.,progress)

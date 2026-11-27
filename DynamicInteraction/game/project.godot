@@ -2,7 +2,7 @@ config_version=5
 
 [application]
 config/name="Rosé | Physical Responsiveness 1.2.6 r2"
-config/description="Rosé 1.2.11 | Deformação de contato"
+config/description="Rosé 1.2.12 | Retirada do short"
 run/main_scene="res://direct_touch.tscn"
 config/features=PackedStringArray("4.2", "GL Compatibility")
 

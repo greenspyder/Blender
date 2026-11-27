@@ -16,6 +16,9 @@ const HipSkin=preload("res://mechanics/hip_skin.gd")
 const Strap=preload("res://direct/strap.gd")
 const GarmentPull=preload("res://direct/garment_pull.gd")
 var garment:=GarmentPull.new()
+const ShortPull=preload("res://direct/short_pull.gd")
+var shorts:=ShortPull.new()
+var cloth_by_name:Dictionary={}
 var grab_mode := false
 var fingers:Dictionary={} # índice do toque -> mãos controladas
 var touches:Dictionary={} # mão -> triângulo, estado e intenção
@@ -33,17 +36,21 @@ var desktop_slider_active:=false
 
 
 func _ready()->void:
- get_window().title="Rosé 1.2.11"
+ get_window().title="Rosé 1.2.12"
  super()
  HipSkin.correct($Rose/Portrait.find_child("Body",true,false))
  tissue.setup($Rose/Portrait)
  tone_clothing_materials()
  picker.configure($Rose/Portrait,skeleton,[$Lollipop/Candy,$Lollipop/Stick])
  garment.name="Camisola_em_movimento"
- add_child(garment)
- garment.configure($Rose/Portrait,picker)
- garment.detached.connect(mark_dress_detached)
- garment.dressed.connect(mark_dress_worn)
+ shorts.name="Short_em_movimento"
+ cloth_by_name={"Camisola":garment,"Short":shorts}
+ for piece in cloth_by_name:
+  var cloth=cloth_by_name[piece]
+  add_child(cloth)
+  cloth.configure($Rose/Portrait,picker)
+  cloth.detached.connect(mark_cloth_detached.bind(piece))
+  cloth.dressed.connect(mark_cloth_worn.bind(piece))
  # O diagnóstico herdado e o perfil compartilham os mesmos valores.
  var controls:=diag.get_children().filter(func(node):return node is HSlider)
  var names:=["Rigidez","Amortecimento","Recuperação"]
@@ -167,9 +174,11 @@ func attach_touch(i:int,hit:Dictionary,pos:Vector2,mirrored:bool,initial:Vector3
   "desktop":from_mouse,"depth_origin":depth_by_hand[i],"pull_pixels":0.,"pull_bias":0.,
  }
  binding.strap=Strap.contains_hit(hit)
- binding.tissue=-1 if binding.strap else tissue.region_for_hit(hit)
+ binding.waist=ShortPull.contains_hit(hit)
+ binding.tissue=-1 if binding.strap or binding.waist else tissue.region_for_hit(hit)
  binding.pull=0.
  if binding.strap:binding.detail="Alça da camisola"
+ elif binding.waist:binding.detail="Cós do short"
  elif binding.tissue>=0:binding.detail=SoftTissue.NAMES[binding.tissue]
  else:binding.detail=binding.name
  touches[i]=binding
@@ -185,7 +194,7 @@ func attach_touch(i:int,hit:Dictionary,pos:Vector2,mirrored:bool,initial:Vector3
 
 func update_contact(i:int,g:Dictionary)->void:
  var tracked:Dictionary={}
- if g.down and not g.hit.is_empty() and (garment.owns(i) or g.hit.surface.node.is_visible_in_tree()):
+ if g.down and not g.hit.is_empty() and (cloth_owned(i)!=null or g.hit.surface.node.is_visible_in_tree()):
   if links.has(i):tracked={"p":g.anchor,"n":g.normal}
   elif not g.desktop and not grab_mode and Vector3(g.point).distance_to(g.base)<.004:tracked=g.hit
  hands[i].surface_sample={
@@ -263,76 +272,86 @@ func move_direct(id:int,pos:Vector2)->void:
    input_drag.failure="Raio sem interseção com o plano"
    continue
   g.point=projected
-  if g.strap and links.has(i) and not g.mirror:
-   g.pull_pixels=-offset.y+float(g.pull_bias)
+  if links.has(i) and not g.mirror and (g.strap or g.waist):
+   g.pull_pixels=(offset.y if g.waist else -offset.y)+float(g.pull_bias)
    update_garment_pull(i,g)
   if not links.has(i):
    g.physical=obstacle_motion(g.physical,g.point,.012)
    place_hand(i,{"p":g.physical,"n":g.normal})
    update_contact(i,g)
 
+func cloth_owned(slot:int):
+ for piece in cloth_by_name.values():
+  if piece.owns(slot):return piece
+ return null
+
 func update_garment_pull(i:int,g:Dictionary)->void:
- var travel:=clampf(overlay.size.y*.22,105.,180.)
+ var piece:String=g.name
+ var cloth=cloth_by_name[piece]
+ var travel:=clampf(overlay.size.y*(.28 if g.waist else .22),105.,220. if g.waist else 180.)
  g.pull=clampf((float(g.pull_pixels)-10.)/travel,0.,1.)
- if g.pull>.06 and garment.state==GarmentPull.State.WORN:
-  begin_garment(i,g.anchor)
- if not garment.owns(i):return
- garment.pull(g.pull,g.point)
- if garment.state==GarmentPull.State.HELD:
-  notice="Camisola na mão · solte para largar"
+ if g.pull>.06 and cloth.state==GarmentPull.State.WORN:begin_garment(piece,i,g.anchor)
+ if not cloth.owns(i):return
+ cloth.pull(g.pull,g.point)
+ if cloth.state==GarmentPull.State.HELD:
+  notice="Short na mão · solte para largar" if g.waist else "Camisola na mão · solte para largar"
  elif g.pull>=1.:
-  notice="Aguarde o tecido passar pelos ombros"
+  notice="Aguarde o tecido passar pelos pés" if g.waist else "Aguarde o tecido passar pelos ombros"
  else:
-  notice="Puxe a alça para cima · %d%%"%roundi(g.pull*100.)
+  var instruction:="Puxe o cós para baixo" if g.waist else "Puxe a alça para cima"
+  notice="%s · %d%%"%[instruction,roundi(g.pull*100.)]
 
-func begin_garment(slot:int,point:Vector3)->void:
+func begin_garment(piece:String,slot:int,point:Vector3)->void:
+ var cloth=cloth_by_name[piece]
+ if cloth==shorts:shorts.rig_origin=rose.global_position
  var direction:=signf(rose.to_local(point).x)
- if not garment.begin(slot,point,rose.global_basis,direction if direction!=0. else 1.):return
+ if not cloth.begin(slot,point,rose.global_basis,direction if direction!=0. else 1.):return
  for i in links.keys():
-  if i!=slot and links[i].name=="Camisola":release_grip(i)
+  if i!=slot and links[i].name==piece:release_grip(i)
 
-func mark_dress_detached()->void:
- if "Camisola" not in removed:removed.append("Camisola")
+func mark_cloth_detached(piece:String)->void:
+ if piece not in removed:removed.append(piece)
  sync_anchors()
- notice="Camisola na mão · solte para largar" if garment.held_slot>=0 else "Camisola solta · Recolocar para vestir"
+ notice=piece+" na mão · solte para largar" if cloth_by_name[piece].held_slot>=0 else piece+" solto · Recolocar para vestir"
 
-func mark_dress_worn()->void:
- var was_removed:bool=removed.has("Camisola")
- removed.erase("Camisola")
+func mark_cloth_worn(piece:String)->void:
+ var was_removed:=removed.has(piece)
+ removed.erase(piece)
  sync_anchors()
- notice="Camisola vestida" if was_removed else "Camisola voltou ao lugar"
+ notice=piece+" no lugar" if was_removed else "A peça voltou ao lugar"
 
 func end_direct(id:int,_pos:Vector2,canceled:bool)->void:
  if fingers.has(id):active_hand=fingers[id][0]
  for i in fingers.get(id,[]):
   if not touches.has(i):continue
   var g:Dictionary=touches[i]
-  if garment.owns(i):garment.release(canceled)
+  var cloth=cloth_owned(i)
+  if cloth!=null:cloth.release(canceled)
   if links.has(i):release_grip(i)
   g.down=false
   g.point=g.physical
   g.force=0.0
   update_contact(i,g)
-  notice="Solta · Recolocar para vestir" if "Camisola" in removed else "Solto · "+str(g.detail)
+  notice="Solto · "+str(g.detail) if removed.is_empty() else "Solto · Recolocar para vestir"
  fingers.erase(id)
 
 func clothing_action()->void:
  var link:Dictionary=links.get(active_hand,{})
- var garment_selected:bool=link.get("name","")=="Camisola"
- if "Camisola" in removed and (garment_selected or (not CLOTHES.has(link.get("name","")) and removed.back()=="Camisola")):
-  var owner:=garment.held_slot
-  if garment.redress():
-   if owner>=0:release_grip(owner)
-   notice="Recolocando a camisola"
-   return
-  if garment.state==GarmentPull.State.DRESSING or garment.state==GarmentPull.State.RETURNING:return
- if garment_selected:
-  if garment.state==GarmentPull.State.WORN:begin_garment(active_hand,link.point)
-  if garment.owns(active_hand):
-   garment.finish_with_button()
-   release_grip(active_hand)
+ var selected:String=link.get("name","")
+ if not cloth_by_name.has(selected):
+  if removed.is_empty():return
+  selected=removed.back()
+ var cloth=cloth_by_name[selected]
+ if selected in removed:
+  var slot:int=cloth.held_slot
+  if cloth.redress():
+   if slot>=0:release_grip(slot)
+   notice="Recolocando · "+selected
   return
- super()
+ if cloth.state==GarmentPull.State.WORN:begin_garment(selected,active_hand,link.point)
+ if cloth.owns(active_hand):
+  cloth.finish_with_button()
+  release_grip(active_hand)
 
 func cancel_direct()->void:
  for id in fingers.keys():end_direct(id,Vector2.ZERO,true)
@@ -496,6 +515,7 @@ func _unhandled_input(event:InputEvent)->void:
 func reset_demo()->void:
  cancel_direct()
  garment.reset()
+ shorts.reset()
  tissue.reset()
  super()
  depth_by_hand=[.31,.31]
@@ -522,7 +542,9 @@ func start_link(i:int,g:Dictionary)->void:
    candy.global_transform=world_pose
  links[i]={"name":g.name,"point":g.base,"cursor":g.base,"arm":arm,"wrist":wrist("Palm"+side),"stretch":Vector3.ZERO}
  hands[i].pose_index=3
- notice="Alça agarrada · puxe para cima" if g.strap else "Vinculado · "+str(g.detail)
+ if g.strap:notice="Alça agarrada · puxe para cima"
+ elif g.waist:notice="Cós agarrado · puxe para baixo"
+ else:notice="Vinculado · "+str(g.detail)
 
 func follow_held(dt:float)->void:
  if not direct_active:
@@ -532,8 +554,9 @@ func follow_held(dt:float)->void:
  for i in touches:
   var g:Dictionary=touches[i]
   if not links.has(i):continue
-  if garment.owns(i):
-   var spring:=Grip.traction(g.point,garment.global_position,garment.velocity,prefs.values)
+  var cloth=cloth_owned(i)
+  if cloth!=null:
+   var spring:=Grip.traction(g.point,cloth.global_position,cloth.velocity,prefs.values)
    g.force=spring.length()
    hands[i].desired=Vector3(g.base)+(spring/Grip.force_limit(prefs.values)*.045)
    continue
@@ -563,7 +586,7 @@ func arm_reach_target(slot:int,link:Dictionary,stretch:Vector3)->Vector3:
  return skeleton.to_local(Vector3(link.wrist)+displacement)
 
 func grip_stretch(slot:int,delta:Vector3)->Vector3:
- if not direct_active or not touches.has(slot) or garment.owns(slot):
+ if not direct_active or not touches.has(slot) or cloth_owned(slot)!=null:
   return super(slot,delta)
  return Grip.body_stretch(delta,prefs.values)
 
@@ -600,8 +623,9 @@ func obstacle_motion(start:Vector3,end:Vector3,radius:float)->Vector3:
 func refresh_physical_hand(i:int,g:Dictionary)->void:
  if links.has(i):
   var tracked:Dictionary
-  if garment.owns(i):
-   tracked={"p":garment.global_position,"n":garment.global_basis*Vector3(g.bind_normal)}
+  var cloth=cloth_owned(i)
+  if cloth!=null:
+   tracked={"p":cloth.global_position,"n":cloth.global_basis*Vector3(g.bind_normal)}
   else:
    tracked=picker.track(g.hit)
   g.anchor=tracked.p
@@ -620,19 +644,35 @@ func update_garment_collisions()->void:
   [wrist("UpperR"),Vector3(.073,.087,.067)],
  ]
 
+func update_short_collisions()->void:
+ if shorts.state in [GarmentPull.State.WORN,GarmentPull.State.RESTING]:return
+ shorts.obstacles=[]
+ var base_xy:=wrist("Base")
+ for x in [-.137,.137]:
+  for height in [.32,.63]:
+   var p:=rose.to_global(Vector3(x,height,-.035))
+   p.x+=base_xy.x-rose.global_position.x
+   p.z+=base_xy.z-rose.global_position.z
+   shorts.obstacles.append([p,Vector3(.096,.23,.109)])
+  shorts.obstacles.append([rose.to_global(Vector3(x,.09,.026)),Vector3(.105,.091,.147)])
+
 func _physics_process(dt:float)->void:
  var t:=meter.begin_tick()
  for key in ["Amortecimento","Recuperação","Suavização"]:settings[key]=prefs.values[key]
  settings["Rigidez"]=Grip.pose_stiffness(prefs.values)
  update_garment_collisions()
+ update_short_collisions()
  garment.advance(minf(dt,.05))
+ shorts.advance(minf(dt,.05))
  var lift:=Vector2(garment.arm_weight(false),garment.arm_weight(true))
  solver.wardrobe_lift=solver.wardrobe_lift.lerp(lift,1.-exp(-dt*16.))
  super(dt)
  tissue.advance(dt,skeleton,touches,links)
- if "Camisola" in removed and garment.state!=GarmentPull.State.WORN and links.get(active_hand,{}).get("name","") not in ["Short"]:
+ var active_piece:String=links.get(active_hand,{}).get("name","")
+ if not cloth_by_name.has(active_piece) and not removed.is_empty():active_piece=removed.back()
+ if active_piece in removed:
   garment_button.text="Recolocar"
-  garment_button.disabled=garment.state in [GarmentPull.State.DRESSING,GarmentPull.State.RETURNING]
+  garment_button.disabled=cloth_by_name[active_piece].state in [GarmentPull.State.DRESSING,GarmentPull.State.RETURNING]
  if direct_active:
   reach_label.hide()
   for i in touches.keys():
