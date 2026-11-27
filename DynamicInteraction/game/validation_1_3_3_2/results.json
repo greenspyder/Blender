@@ -1,0 +1,102 @@
+[
+  {
+    "test": "active_cost_test",
+    "passed": true
+  },
+  {
+    "test": "active_integration_test",
+    "passed": true
+  },
+  {
+    "test": "active_ragdoll_test",
+    "passed": true
+  },
+  {
+    "test": "articulation_test",
+    "passed": true
+  },
+  {
+    "test": "balance_frame_test",
+    "passed": true
+  },
+  {
+    "test": "balance_test",
+    "passed": true
+  },
+  {
+    "test": "constraint_test",
+    "passed": true
+  },
+  {
+    "test": "direct_touch_test",
+    "passed": true
+  },
+  {
+    "test": "dynamic_pose_test",
+    "passed": true
+  },
+  {
+    "test": "dynamic_test",
+    "passed": true
+  },
+  {
+    "test": "fabric_profiles_test",
+    "passed": true
+  },
+  {
+    "test": "full_body_rig_test",
+    "passed": true
+  },
+  {
+    "test": "gameplay_cost_test",
+    "passed": true
+  },
+  {
+    "test": "gameplay_test",
+    "passed": true
+  },
+  {
+    "test": "gameplay_visual_check",
+    "passed": true
+  },
+  {
+    "test": "interaction_test",
+    "passed": true
+  },
+  {
+    "test": "mechanics_test",
+    "passed": true
+  },
+  {
+    "test": "mesh_integrity_test",
+    "passed": true
+  },
+  {
+    "test": "mobile_touch_test",
+    "passed": true
+  },
+  {
+    "test": "platform_controls_test",
+    "passed": true
+  },
+  {
+    "test": "precision_test",
+    "passed": true
+  },
+  {
+    "test": "responsiveness_test",
+    "passed": true
+  },
+  {
+    "test": "short_pull_test",
+    "passed": true
+  },
+  {
+    "test": "strap_test",
+    "passed": true
+  },
+  {
+    "test": "tissue_test",
+    "passed": true
+  }
+]

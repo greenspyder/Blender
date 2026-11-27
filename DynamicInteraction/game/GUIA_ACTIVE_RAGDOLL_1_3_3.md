@@ -1,5 +1,7 @@
 # ROSE 1.3.3 · Active Ragdoll
 
+> Atualização 1.3.3.2: o jogo agora abre direto na simulação. Veja [a nova interface](GUIA_GAMEPLAY_1_3_3_2.md); os caminhos de bancada abaixo descrevem a interface anterior.
+
 A versão 1.3.3.1 tem um [editor de referências posturais](GUIA_POSTURAS_1_3_3_1.md).
 
 ## Abrir e experimentar

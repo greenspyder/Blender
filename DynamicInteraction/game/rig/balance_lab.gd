@@ -72,7 +72,7 @@ func path_z(time:float)->float:
  return sin(time*.74)*balance.length_scale*.65
 
 func tick(dt:float)->void:
- elapsed+=dt
+ elapsed+=reference_time_delta(dt)
  var size_:float=balance.length_scale
  var cycle:=elapsed/.98
  var walk:=movement==1
@@ -180,3 +180,6 @@ func draw_pose()->void:
    if i>0:line(prior,point,COLORS.ik)
    prior=point
  lines.surface_end()
+
+func reference_time_delta(dt:float)->float:
+ return dt

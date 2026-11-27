@@ -59,8 +59,9 @@ static func replace_skin(part:MeshInstance3D,sk:Skeleton3D,ids:Dictionary,shoe:b
   mesh.add_surface_from_arrays(original.surface_get_primitive_type(surface),arrays,original.surface_get_blend_shape_arrays(surface))
   mesh.surface_set_material(surface,original.surface_get_material(surface))
   mesh.surface_set_name(surface,original.surface_get_name(surface))
- part.mesh=mesh
+ # Registra os novos binds antes de expor índices novos ao renderer.
  part.skin=skin
+ part.mesh=mesh
 
 static func distribute(arrays:Array,slots:Dictionary,bind_space:Transform3D,shoe:bool)->void:
  var vertices:PackedVector3Array=arrays[Mesh.ARRAY_VERTEX]

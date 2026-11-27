@@ -548,7 +548,7 @@ func tick_reference(dt:float)->void:
     else:
         $Model.position=Vector3.ZERO
         var target:=pose_draft if mode==ReferenceMode.CUSTOM else free_pose
-        pose_reference.apply(target)
+        pose_reference.apply(compose_custom_reference(target))
     if not transition_from.is_empty():
         transition_elapsed+=dt
         var fraction:=clampf(transition_elapsed/transition_duration,0.,1.)
@@ -584,3 +584,6 @@ func custom_support()->float:
         var closest:=Geometry2D.get_closest_point_to_segment(xy,hull[i-1],hull[i])
         distance=minf(distance,xy.distance_to(closest))
     return 1.-smoothstep(.08,.28,distance/balance.length_scale)
+
+func compose_custom_reference(target:Dictionary)->Dictionary:
+    return target

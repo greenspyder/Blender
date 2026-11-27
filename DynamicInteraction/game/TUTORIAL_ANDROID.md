@@ -1,5 +1,7 @@
 # Rosé Mobile · Godot no Android
 
+> Para a versão 1.3.3.2, comece pelo [tutorial da interface de jogo](GUIA_GAMEPLAY_1_3_3_2.md). Este documento preserva as instruções das cenas anteriores, disponíveis em Desenvolvimento.
+
 ## Instalar no celular
 
 1. Extraia **Rose_Mobile_Completo.zip** em uma pasta própria no celular.

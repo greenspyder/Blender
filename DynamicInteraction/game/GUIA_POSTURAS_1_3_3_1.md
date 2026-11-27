@@ -1,5 +1,7 @@
 # ROSE 1.3.3.1 · Referências posturais dinâmicas
 
+> Atualização 1.3.3.2: o jogo agora abre direto na simulação. Veja [a nova interface](GUIA_GAMEPLAY_1_3_3_2.md); os caminhos de bancada abaixo descrevem a interface anterior.
+
 Extraia o ZIP em uma pasta nova e importe `project.godot`. Use **Executar projeto (▶) → Active Ragdoll**. No PC, também dá para abrir `rig/active/lab.tscn` e executar a cena atual. A bancada inicia em **Automático → Em pé**, com a personagem vestida.
 
 ## Abaixar a personagem e conservar a pose

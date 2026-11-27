@@ -49,3 +49,16 @@ func save_pose(title:String,pose:Dictionary)->Error:
     if result==OK:result=DirAccess.rename_absolute(temp,path)
     if result==OK:entries=candidate
     return result
+
+
+func replace_entries(candidate:Dictionary)->Error:
+    if candidate.size()>MAX_POSES:return ERR_OUT_OF_MEMORY
+    for title in candidate:
+        if not title is String or title.is_empty() or title.length()>MAX_NAME or not valid_pose(candidate[title]):return ERR_INVALID_DATA
+    var cfg:=ConfigFile.new()
+    cfg.set_value("library","version",FORMAT)
+    cfg.set_value("library","poses",candidate)
+    var result:=cfg.save(path+".tmp")
+    if result==OK:result=DirAccess.rename_absolute(path+".tmp",path)
+    if result==OK:entries=candidate
+    return result
