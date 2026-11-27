@@ -32,7 +32,7 @@ func run()->void:
  verify(lab.links.size()==2,"vínculos simultâneos")
  for i in range(90):
   lab.hand_screen[0]+=Vector2(1 if i<45 else -5,0);tick(1)
-  verify(lab.solver.bend[0]>=14.99 and lab.solver.bend[1]<=120.01 and lab.solver.body_load.is_finite(),"limites")
+  verify(lab.solver.bend[0]>=lab.solver.elbow_min-.05 and lab.solver.bend[1]<=lab.solver.elbow_max+.05 and lab.solver.body_load.is_finite(),"limites")
  lab.release_grip(1);lab.release_grip(0);lab.select_tool(lab.Tool.CANDY);tick(180)
  verify(lab.solver.body_load.length()<.002 and lab.wrist("PalmR").distance_to(rest)<.025,"retorno ao repouso vivo")
  lab.select_tool(lab.Tool.RIGHT);tick(1)

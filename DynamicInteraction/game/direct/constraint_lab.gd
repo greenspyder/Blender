@@ -63,7 +63,7 @@ func _ready()->void:
  overlay.add_child(bar)
  bar.position=Vector2(12,10)
  popup=prefs.panel(overlay)
- for title in ["Rosé","Ajustes","Reiniciar"]:
+ for title in ["Rosé","Ajustes","Reiniciar","Articulações"]:
   var btn:=Button.new()
   btn.text=title
   btn.custom_minimum_size=Vector2(92,48)
@@ -72,6 +72,7 @@ func _ready()->void:
    "Rosé":btn.pressed.connect(func():get_tree().change_scene_to_file("res://direct_touch.tscn"))
    "Ajustes":btn.pressed.connect(func():clear_grips();popup.popup_centered_ratio(.8))
    "Reiniciar":btn.pressed.connect(reset)
+   "Articulações":btn.pressed.connect(func():get_tree().change_scene_to_file("res://direct/articulation_lab.tscn"))
  meter.attach(overlay,Vector2(12,66))
  overlay.add_child(report)
  report.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)

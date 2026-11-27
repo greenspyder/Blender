@@ -167,6 +167,9 @@ func show_garment(name_:String,on:bool)->void:
 func grip_stretch(_slot:int,delta:Vector3)->Vector3:
  return (delta/(1.+delta.length()*2.2)).limit_length(.26)
 
+func arm_reach_target(_slot:int,link:Dictionary,stretch:Vector3)->Vector3:
+ return skeleton.to_local(Vector3(link.wrist)+stretch)
+
 func follow_held(dt:float)->void:
  var total:=Vector3.ZERO
  var cloth:={}
@@ -178,7 +181,7 @@ func follow_held(dt:float)->void:
   if link.name=="Pirulito":
    candy.global_position=hands[i].global_position;continue
   total+=stretch*(.48 if link.arm!="" else .85)
-  if link.arm!="":set_reach_target(link.arm,link.wrist+stretch)
+  if link.arm!="":set_reach_target(link.arm,arm_reach_target(i,link,stretch))
   if CLOTHES.has(link.name):cloth[link.name]=force_readout[i]
   # Prenda a mão visível ao ponto animado; a intenção livre continua em desired.
   hands[i].global_position=anchors.get(link.name,link.point)

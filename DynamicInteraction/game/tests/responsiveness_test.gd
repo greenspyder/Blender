@@ -69,7 +69,7 @@ func compare_body()->void:
   check(Vector3(bound.point).distance_to(bound.physical)>.27,"mão física restringida "+name_)
   var anchor:Dictionary=lab.picker.track(bound.hit)
   check(lab.hands[0].tips[1].global_position.distance_to(anchor.p)<.004,"mão não acompanha dedo para longe "+name_)
-  check(lab.solver.bend[1]>=14.9 and lab.solver.bend[1]<=120.1,"cotovelo limitado "+name_)
+  check(lab.solver.bend[1]>=lab.solver.elbow_min-.1 and lab.solver.bend[1]<=lab.solver.elbow_max+.1,"cotovelo limitado "+name_)
   lab.end_direct(2,original,false)
   ticks(180)
   check(lab.wrist("PalmR").distance_to(rest)<.036,"recuperação corporal "+name_)

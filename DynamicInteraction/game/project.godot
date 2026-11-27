@@ -2,7 +2,7 @@ config_version=5
 
 [application]
 config/name="Rosé | Physical Responsiveness 1.2.6 r2"
-config/description="Rosé 1.2.9 | Integridade de malha e tecidos"
+config/description="Rosé 1.2.10 | Articulações e IK"
 run/main_scene="res://direct_touch.tscn"
 config/features=PackedStringArray("4.2", "GL Compatibility")
 

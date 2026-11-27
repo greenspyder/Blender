@@ -31,7 +31,7 @@ var desktop_slider_active:=false
 
 
 func _ready()->void:
- get_window().title="Rosé 1.2.9"
+ get_window().title="Rosé 1.2.10"
  super()
  HipSkin.correct($Rose/Portrait.find_child("Body",true,false))
  tone_clothing_materials()
@@ -545,6 +545,15 @@ func follow_held(dt:float)->void:
  for i in links:
   if links[i].name=="Pirulito":hands[i].global_position=candy.global_position
  super(dt)
+
+func arm_reach_target(slot:int,link:Dictionary,stretch:Vector3)->Vector3:
+ if not direct_active or not touches.has(slot):
+  return super(slot,link,stretch)
+ var touch:Dictionary=touches[slot]
+ # O ponto agarrado fica sobre a superfície da palma. Use o deslocamento
+ # em relação ao começo do gesto para manter esse mesmo ponto de pega.
+ var displacement:Vector3=(touch.point-touch.base)*float(prefs.values["Sensibilidade"])
+ return skeleton.to_local(Vector3(link.wrist)+displacement)
 
 func grip_stretch(slot:int,delta:Vector3)->Vector3:
  if not direct_active or not touches.has(slot) or garment.owns(slot):
