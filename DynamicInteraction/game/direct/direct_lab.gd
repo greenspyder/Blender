@@ -9,6 +9,8 @@ var prop_velocity := Vector3.ZERO
 var prop_moving := false
 var physics_readout := Label.new()
 var meter=preload("res://direct/physics_meter.gd").new()
+const COTTON=preload("res://direct/fabrics/light_cotton.tres")
+const HipSkin=preload("res://mechanics/hip_skin.gd")
 const Strap=preload("res://direct/strap.gd")
 const GarmentPull=preload("res://direct/garment_pull.gd")
 var garment:=GarmentPull.new()
@@ -29,8 +31,10 @@ var desktop_slider_active:=false
 
 
 func _ready()->void:
- get_window().title="Rosé 1.2.8"
+ get_window().title="Rosé 1.2.9"
  super()
+ HipSkin.correct($Rose/Portrait.find_child("Body",true,false))
+ tone_clothing_materials()
  picker.configure($Rose/Portrait,skeleton,[$Lollipop/Candy,$Lollipop/Stick])
  garment.name="Camisola_em_movimento"
  add_child(garment)
@@ -88,6 +92,18 @@ func _ready()->void:
  select_tool(Tool.MULTI)
  desktop_cursor=pointer
  set_control_mode(control_mode.choice,false)
+
+func tone_clothing_materials()->void:
+ for group in CLOTHES.values():
+  for part in group:
+   var mesh:MeshInstance3D=$Rose/Portrait.find_child(part,true,false)
+   if not mesh:continue
+   for surface in mesh.mesh.get_surface_count():
+    var original:Material=mesh.get_active_material(surface)
+    if original is StandardMaterial3D:
+     var cotton:StandardMaterial3D=original.duplicate()
+     COTTON.apply_material(cotton)
+     mesh.set_surface_override_material(surface,cotton)
 
 func set_control_mode(choice:int,persist:=true)->void:
  if choice not in [ControlMode.Mode.AUTO,ControlMode.Mode.DESKTOP,ControlMode.Mode.TOUCHSCREEN]:return

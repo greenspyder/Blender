@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="RoseFabricProfile" load_steps=2 format=3]
+[ext_resource type="Script" path="res://direct/fabric_profile.gd" id="1"]
+[resource]
+script = ExtResource("1")
+label = "Tecido elástico"
+density = 175.0
+stretch = 0.038
+bend = 0.58
+damping = 4.3
+friction = 0.71
+roughness = 0.71
+specular = 0.23
+strain_limit = 0.45

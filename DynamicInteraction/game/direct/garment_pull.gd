@@ -127,6 +127,7 @@ func bake_render_mesh(source:MeshInstance3D,records:Array)->ArrayMesh:
   if material is StandardMaterial3D:
    render.set_shader_parameter("fabric_color",material.albedo_color)
    render.set_shader_parameter("fabric_roughness",material.roughness)
+   render.set_shader_parameter("fabric_specular",material.metallic_specular)
   render_mesh.surface_set_material(render_mesh.get_surface_count()-1,render)
  return render_mesh
 

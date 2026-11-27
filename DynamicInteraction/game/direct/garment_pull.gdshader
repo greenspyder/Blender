@@ -1,8 +1,9 @@
 shader_type spatial;
-render_mode cull_disabled;
+render_mode cull_disabled, diffuse_lambert;
 
 uniform vec4 fabric_color : source_color = vec4(0.5, 0.14, 0.22, 1.0);
-uniform float fabric_roughness = 0.5;
+uniform float fabric_roughness = 0.91;
+uniform float fabric_specular = 0.13;
 uniform sampler2D cloth_offsets : filter_nearest, repeat_disable;
 
 void vertex() {
@@ -19,4 +20,5 @@ void fragment() {
 	NORMAL = normalize(mix(NORMAL, folded, 0.72));
 	ALBEDO = fabric_color.rgb;
 	ROUGHNESS = fabric_roughness;
+	SPECULAR = fabric_specular;
 }

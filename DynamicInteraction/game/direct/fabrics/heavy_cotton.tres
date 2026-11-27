@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="RoseFabricProfile" load_steps=2 format=3]
+[ext_resource type="Script" path="res://direct/fabric_profile.gd" id="1"]
+[resource]
+script = ExtResource("1")
+label = "Algodão pesado"
+density = 265.0
+stretch = 0.003
+bend = 0.11
+damping = 4.7
+friction = 0.65
+roughness = 0.96
+specular = 0.09
+strain_limit = 0.08
