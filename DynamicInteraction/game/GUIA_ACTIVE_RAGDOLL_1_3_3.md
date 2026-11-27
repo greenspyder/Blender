@@ -2,7 +2,7 @@
 
 ## Abrir e experimentar
 
-Extraia o ZIP inteiro, importe `project.godot` e abra `rig/active/lab.tscn`. Execute a cena atual. Pelo jogo, o caminho é **Bancada → Articulações → Corpo inteiro → Equilíbrio e chão → Active Ragdoll**. O projeto abre no laboratório de toque habitual. A bancada nova carrega o modelo vestido do perfil e aceita mouse ou dedo no mesmo projeto.
+Extraia o ZIP inteiro e importe `project.godot`. No editor, toque em **Executar projeto (▶)**. Na barra inferior do jogo, toque em **Active Ragdoll**. Para voltar, use **Voltar à tela inicial** no painel da bancada. A cena também pode ser executada diretamente em `rig/active/lab.tscn`.
 
 Comece em **Em pé / Active / Natural**. Arraste pelo meio do tórax e sustente o gesto acima da cabeça. O ponto tocado segue uma mola com força limitada no plano paralelo à câmera. Observe os pés perderem apoio e a pelve acompanhar o tronco. Solte e espere a aterrissagem. Um arrasto pelo punho exerce menos força e gira o braço mais facilmente. O controle de câmera modifica a direção do plano de arrasto. O botão **Perturbar o tronco** reproduz sempre o mesmo impulso relativo ao tamanho do corpo.
 

@@ -36,7 +36,7 @@ var desktop_slider_active:=false
 
 
 func _ready()->void:
- get_window().title="Rosé 1.3.2"
+ get_window().title="Rosé 1.3.3"
  super()
  HipSkin.correct($Rose/Portrait.find_child("Body",true,false))
  tissue.setup($Rose/Portrait)
@@ -82,6 +82,9 @@ func _ready()->void:
   physics_readout.visible=not physics_readout.visible
   meter.caption.visible=physics_readout.visible)
  button(footer,"Bancada",func():get_tree().change_scene_to_file("res://direct/constraint_lab.tscn"))
+ var ragdoll_button:=button(footer,"Active Ragdoll",func():
+  get_tree().change_scene_to_file("res://rig/active/lab.tscn"))
+ footer.move_child(ragdoll_button,0)
  overlay.add_child(physics_readout)
  physics_readout.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
  physics_readout.position+=Vector2(12,-345)
