@@ -100,6 +100,11 @@ func create_panel()->void:
  back.custom_minimum_size.y=44
  back.pressed.connect(func():get_tree().change_scene_to_file("res://direct/constraint_lab.tscn"))
  content.add_child(back)
+ var body:=Button.new()
+ body.text="Corpo inteiro · 1.3.1"
+ body.custom_minimum_size.y=44
+ body.pressed.connect(func():get_tree().change_scene_to_file("res://rig/full_body_lab.tscn"))
+ content.add_child(body)
  var toggle:=CheckButton.new()
  toggle.text="Ossos e alvos de IK"
  toggle.button_pressed=draw_rig

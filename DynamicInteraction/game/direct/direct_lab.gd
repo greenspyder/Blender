@@ -36,7 +36,7 @@ var desktop_slider_active:=false
 
 
 func _ready()->void:
- get_window().title="Rosé 1.2.12"
+ get_window().title="Rosé 1.3.1"
  super()
  HipSkin.correct($Rose/Portrait.find_child("Body",true,false))
  tissue.setup($Rose/Portrait)

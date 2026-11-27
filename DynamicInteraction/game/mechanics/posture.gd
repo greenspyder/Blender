@@ -68,12 +68,12 @@ func constrain_axis(ray:Vector3,side:float)->Vector3:
   return Vector3.DOWN*cos(deg_to_rad(raise))+horizontal*sin(deg_to_rad(raise))
  return direction
 
-func solve_arm(sk:Skeleton3D,i:int,contacts:Array,dt:float,influence:float)->void:
+func solve_arm(sk:Skeleton3D,i:int,contacts:Array,dt:float,influence:float,chain:=Vector3i(-1,-1,-1))->void:
  var suffix:="L" if i==0 else "R"
  var sign_:=-1. if i==0 else 1.
- var upper:=sk.find_bone("Upper"+suffix)
- var fore:=sk.find_bone("Fore"+suffix)
- var palm:=sk.find_bone("Palm"+suffix)
+ var upper:=chain.x if chain.x>=0 else sk.find_bone("Upper"+suffix)
+ var fore:=chain.y if chain.y>=0 else sk.find_bone("Fore"+suffix)
+ var palm:=chain.z if chain.z>=0 else sk.find_bone("Palm"+suffix)
  var a:=sk.get_bone_global_pose(upper).origin
  var b:=sk.get_bone_global_pose(fore).origin
  var c:=sk.get_bone_global_pose(palm).origin
