@@ -10,6 +10,8 @@ var prop_moving := false
 var physics_readout := Label.new()
 var meter=preload("res://direct/physics_meter.gd").new()
 const COTTON=preload("res://direct/fabrics/light_cotton.tres")
+const SoftTissue=preload("res://mechanics/soft_tissue.gd")
+var tissue:=SoftTissue.new()
 const HipSkin=preload("res://mechanics/hip_skin.gd")
 const Strap=preload("res://direct/strap.gd")
 const GarmentPull=preload("res://direct/garment_pull.gd")
@@ -31,9 +33,10 @@ var desktop_slider_active:=false
 
 
 func _ready()->void:
- get_window().title="Rosé 1.2.10"
+ get_window().title="Rosé 1.2.11"
  super()
  HipSkin.correct($Rose/Portrait.find_child("Body",true,false))
+ tissue.setup($Rose/Portrait)
  tone_clothing_materials()
  picker.configure($Rose/Portrait,skeleton,[$Lollipop/Candy,$Lollipop/Stick])
  garment.name="Camisola_em_movimento"
@@ -164,8 +167,11 @@ func attach_touch(i:int,hit:Dictionary,pos:Vector2,mirrored:bool,initial:Vector3
   "desktop":from_mouse,"depth_origin":depth_by_hand[i],"pull_pixels":0.,"pull_bias":0.,
  }
  binding.strap=Strap.contains_hit(hit)
+ binding.tissue=-1 if binding.strap else tissue.region_for_hit(hit)
  binding.pull=0.
- binding.detail="Alça da camisola" if binding.strap else binding.name
+ if binding.strap:binding.detail="Alça da camisola"
+ elif binding.tissue>=0:binding.detail=SoftTissue.NAMES[binding.tissue]
+ else:binding.detail=binding.name
  touches[i]=binding
  hands[i].enabled=true
  hands[i].visible=true
@@ -490,6 +496,7 @@ func _unhandled_input(event:InputEvent)->void:
 func reset_demo()->void:
  cancel_direct()
  garment.reset()
+ tissue.reset()
  super()
  depth_by_hand=[.31,.31]
  rail.set_value_no_signal(-depth)
@@ -622,6 +629,7 @@ func _physics_process(dt:float)->void:
  var lift:=Vector2(garment.arm_weight(false),garment.arm_weight(true))
  solver.wardrobe_lift=solver.wardrobe_lift.lerp(lift,1.-exp(-dt*16.))
  super(dt)
+ tissue.advance(dt,skeleton,touches,links)
  if "Camisola" in removed and garment.state!=GarmentPull.State.WORN and links.get(active_hand,{}).get("name","") not in ["Short"]:
   garment_button.text="Recolocar"
   garment_button.disabled=garment.state in [GarmentPull.State.DRESSING,GarmentPull.State.RETURNING]

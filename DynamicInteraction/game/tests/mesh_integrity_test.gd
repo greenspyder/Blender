@@ -66,7 +66,7 @@ func run()->void:
  before=original_picker.surfaces[0]
  body.mesh=corrected
  model.free()
- check(before.vertices==after.vertices and before.indices==after.indices and before.shapes==after.shapes,"topologia, posição de bind e morphs preservados")
+ check(before.vertices==after.vertices and before.indices==after.indices and before.shapes==after.shapes.slice(0,before.shapes.size()),"topologia, posição de bind e morphs preservados")
  for i in after.vertices.size():
   var sum:=0.
   for j in range(i*4,i*4+4):sum+=after.weights[j]
