@@ -80,18 +80,22 @@ static func distribute(arrays:Array,slots:Dictionary,bind_space:Transform3D,shoe
   var waist:=smoothstep(.99,1.14,p.y)*(1.-smoothstep(1.22,1.34,p.y))
   if leg<=0. and waist<=0.:continue
   var influences:Dictionary={}
+  var leg_share:=0.
   for i in range(v*4,v*4+4):
    var slot:=joints[i]
-   var w:=weights[i]*(1.-leg)
+   var w:=weights[i]
+   # Só o peso de tronco/pelve pode migrar para os novos membros inferiores.
    if slot in [slots.pelvis,slots.chest]:
+    leg_share+=w*leg
+    w*=1.-leg
     add_weight(influences,slots.lumbar,w*waist)
     w*=1.-waist
    add_weight(influences,slot,w)
   var below_knee:=1.-smoothstep(.43,.56,p.y)
   var below_ankle:=1.-smoothstep(.065,.145,p.y)
-  add_weight(influences,slots["thigh_"+side],leg*(1.-below_knee))
-  add_weight(influences,slots["shin_"+side],leg*below_knee*(1.-below_ankle))
-  add_weight(influences,slots["foot_"+side],leg*below_ankle)
+  add_weight(influences,slots["thigh_"+side],leg_share*(1.-below_knee))
+  add_weight(influences,slots["shin_"+side],leg_share*below_knee*(1.-below_ankle))
+  add_weight(influences,slots["foot_"+side],leg_share*below_ankle)
   var indices:=influences.keys()
   indices.sort_custom(func(a,b):return influences[a]>influences[b])
   var total:=0.

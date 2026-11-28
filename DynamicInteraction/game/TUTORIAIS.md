@@ -1,5 +1,7 @@
 # Rosé no Godot · interação com o pirulito
 
+**Versão 1.3.3.2.2** · [Agachamento, ajustes das alças, câmera e teste no celular](GUIA_FOUNDATION_1_3_3_2_2.md)
+
 > Para a versão 1.3.3.2, comece pelo [tutorial da interface de jogo](GUIA_GAMEPLAY_1_3_3_2.md). Este documento preserva as instruções das cenas anteriores, disponíveis em Desenvolvimento.
 
 O projeto usa o rosto, os olhos, os brilhos e o cabelo de `Rose_Clipe_Facial.blend`. A boca responde à distância do pirulito e o objeto, quando encaixado, acompanha o giro da personagem. O arquivo `assets/rose_portrait.glb` já vem pronto para o Godot.

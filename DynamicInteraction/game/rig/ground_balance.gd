@@ -4,6 +4,7 @@ var profile:Resource
 var length_scale:=1.
 var height:=0.
 var velocity:=0.
+var supported_weight_fraction:=0.
 var contacts:Dictionary={}
 var targets:Dictionary={}
 var hull:=PackedVector2Array()
@@ -15,11 +16,13 @@ var support_state:="Sem apoio"
 var recovery_time:=0.
 var loads:=Vector2.ZERO
 var filtered_normals:Dictionary={}
+var ground_rays:Dictionary={}
 
 func configure(character:Resource,length_:float)->void:
  profile=character
  length_scale=length_
  gravity=float(ProjectSettings.get_setting("physics/3d/default_gravity"))
+ for side in ["l","r"]:ground_rays[side]=PhysicsRayQueryParameters3D.new()
 
 func sense(space:PhysicsDirectSpaceState3D,side:String,sole:Vector3,advance:bool)->void:
  var band:float=profile.contact_band*length_scale
@@ -34,7 +37,10 @@ func sense(space:PhysicsDirectSpaceState3D,side:String,sole:Vector3,advance:bool
    else:anchor={}
   else:anchor={}
  var top:=query_point+Vector3.UP*length_scale*.32
- var query:=PhysicsRayQueryParameters3D.create(top,query_point-Vector3.UP*length_scale*.5,profile.ground_mask)
+ var query:PhysicsRayQueryParameters3D=ground_rays[side]
+ query.from=top
+ query.to=query_point-Vector3.UP*length_scale*.5
+ query.collision_mask=profile.ground_mask
  var hit:=space.intersect_ray(query)
  contacts.erase(side)
  targets[side]={"point":sole,"normal":Vector3.UP}
@@ -111,7 +117,7 @@ func integrate(com:Vector3,dt:float)->void:
   if not contacts.has(side):continue
   var fraction:=share if i==1 else 1.-share
   var w:float=profile.support_frequency
-  var reaction:=clampf(-float(contacts[side].gap)*w*w-2.*profile.support_damping*w*velocity,0.,gravity*4.)
+  var reaction:=clampf(gravity*supported_weight_fraction-float(contacts[side].gap)*w*w-2.*profile.support_damping*w*velocity,0.,gravity*4.)
   acceleration+=reaction*fraction
   loads[i]=reaction*fraction*profile.mass_kg
  velocity+=acceleration*dt

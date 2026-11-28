@@ -42,7 +42,12 @@ func _ready()->void:
   return
  $Model.add_child(model)
  var skeletons:=model.find_children("*","Skeleton3D",true,false)
- sk=skeletons[0] if not skeletons.is_empty() else null
+ if not profile.skeleton_path.is_empty():
+  sk=model.get_node_or_null(profile.skeleton_path) as Skeleton3D
+ elif skeletons.size()==1:sk=skeletons[0]
+ elif skeletons.size()>1:
+  show_message(content,"Escolha o Skeleton3D do personagem no perfil.")
+  return
  if sk==null:
   show_message(content,"O modelo precisa de um Skeleton3D.")
   return
@@ -158,7 +163,7 @@ func choose_pose(index:int)->void:
  preview={"travel":Vector3(0.,-.015,0.)}
  for key in JOINTS:preview[key]=Vector3.ZERO
  for side in ["l","r"]:
-  preview["arm_"+side]=Vector3(22.,45.,0.)
+  preview["arm_"+side]=profile.arm_rest_angles
   preview["hip_"+side]=Vector3(-8.,0.,0.)
   preview["knee_"+side]=Vector3(15.,0.,0.)
   preview["ankle_"+side]=Vector3(-7.,0.,0.)

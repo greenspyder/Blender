@@ -8,6 +8,8 @@ var skin:Skeleton3D
 var ids:Dictionary
 var bodies:Dictionary={}
 var offsets:Dictionary={}
+var inverse_offsets:Dictionary={}
+var groups:Dictionary={}
 var joints:Dictionary={}
 var gain:Dictionary={}
 var applied_force:Dictionary={}
@@ -86,6 +88,8 @@ func make_segment(segment:Array)->void:
  body.global_position=center
  bodies[role]=body
  offsets[role]=frame.affine_inverse()*body.global_transform
+ inverse_offsets[role]=Transform3D(offsets[role]).affine_inverse()
+ groups[role]=settings.group(role)
  gain[role]=settings.state_strength[state]
 
 func make_joint(role:String)->void:
@@ -148,7 +152,7 @@ func drive(dt:float,stance:Dictionary,support_fraction:float=1.,reference_streng
  var support_capacity:=0.
  for role in bodies:
   var b:Segment=bodies[role]
-  var g:=settings.group(role)
+  var g:int=groups[role]
   var strength:float=settings.state_strength[state]*reference_strength
   if state==4:strength*=smoothstep(0.,1.,recovery_phase)
   gain[role]=move_toward(gain[role],strength,dt*settings.recovery_speed[g])
@@ -203,18 +207,54 @@ func drive(dt:float,stance:Dictionary,support_fraction:float=1.,reference_streng
   applied_force[role]=f
  rms=sqrt(error_sq/bodies.size())
 
+# Entrada comum ao toque e a futuros efetuadores. A posição é local ao segmento.
+func apply_grip(role:String,local_point:Vector3,goal:Vector3,dt:float)->Dictionary:
+ var body:RigidBody3D=bodies.get(role)
+ if body==null or dt<=0.:return {}
+ var group:int=groups[role]
+ var arm:=body.global_basis*local_point
+ var velocity:=body.linear_velocity+body.angular_velocity.cross(arm)
+ var k:float=settings.stiffness[group]
+ var d:float=2.*sqrt(k)*settings.damping[group]
+ var acceleration:=((goal-body.global_position-arm)*k-velocity*d)/(1.+dt*d)
+ var force:Vector3=(acceleration*profile.mass_kg).limit_length(settings.max_force[group])
+ var torque:=arm.cross(force).limit_length(settings.max_torque[group])
+ body.apply_central_force(force)
+ body.apply_torque(torque)
+ return {"force":force,"torque":torque}
+
+func support_outline(seat:StaticBody3D,load_bearing_only:bool)->PackedVector2Array:
+ var points:=PackedVector2Array()
+ for role in active_support:
+  var body:Segment=bodies[role]
+  if role.begins_with("foot_"):
+   var collider:CollisionShape3D=body.get_child(0)
+   var box:BoxShape3D=collider.shape
+   for x in [-.5,.5]:
+    for z in [-.5,.5]:
+     var corner:=collider.to_global(box.size*Vector3(x,-.5,z))
+     points.append(Vector2(corner.x,corner.z))
+  elif role=="pelvis" and seat!=null and seat.visible and body.support_body==seat:
+   var support:=Vector2(body.support_point.x,body.support_point.z)
+   for x in [-1.,1.]:
+    for z in [-1.,1.]:points.append(support+Vector2(.13*x,.10*z)*leg)
+  elif not load_bearing_only:points.append(Vector2(body.support_point.x,body.support_point.z))
+ return points
+
 func physical_pose(role:String)->Transform3D:
- return bodies[role].global_transform*Transform3D(offsets[role]).affine_inverse()
+ return bodies[role].global_transform*Transform3D(inverse_offsets[role])
 
 func present()->void:
  # Conserva os comprimentos de repouso. A única translação escrita é a da raiz.
  max_gap=0.
+ var world_to_skin:=skin.global_transform.affine_inverse()
  for segment in profile.MASS_SEGMENTS:
   var role:String=segment[0]
   var id:int=ids[role]
-  var target:=skin.global_transform.affine_inverse()*physical_pose(role)
+  var physical:=physical_pose(role)
+  var target:=world_to_skin*physical
   var parent:=skin.get_bone_parent(id)
   if parent>=0:target=skin.get_bone_global_pose(parent).affine_inverse()*target
   skin.set_bone_pose_rotation(id,target.basis.orthonormalized().get_rotation_quaternion())
   if role=="pelvis":skin.set_bone_pose_position(id,target.origin)
-  max_gap=maxf(max_gap,physical_pose(role).origin.distance_to(skin.to_global(skin.get_bone_global_pose(id).origin)))
+  max_gap=maxf(max_gap,physical.origin.distance_to(skin.to_global(skin.get_bone_global_pose(id).origin)))

@@ -1,0 +1,619 @@
+{
+  "types": {
+    ".glb": 4,
+    ".gd": 100,
+    ".tscn": 15,
+    ".tres": 6,
+    ".py": 7
+  },
+  "dependencies": {
+    "candy.gdshader": [],
+    "cloth/accessory.gd": [
+      "cloth/dynamic_surface.gd",
+      "cloth/xpbd.gd",
+      "direct/surface_picker.gd"
+    ],
+    "cloth/controller.gd": [
+      "cloth/accessory.gd",
+      "cloth/material_profile.gd",
+      "cloth/worn_layer.gd"
+    ],
+    "cloth/dynamic_surface.gd": [],
+    "cloth/fit_region.gd": [],
+    "cloth/material_profile.gd": [
+      "cloth/material_profile.gd"
+    ],
+    "cloth/worn_layer.gd": [
+      "cloth/dynamic_surface.gd",
+      "cloth/fit_region.gd",
+      "cloth/xpbd.gd"
+    ],
+    "cloth/xpbd.gd": [
+      "cloth/material_profile.gd"
+    ],
+    "demo.tscn": [
+      "assets/rose_portrait.glb",
+      "candy.gdshader",
+      "interaction.gd"
+    ],
+    "direct/articulation_lab.gd": [
+      "direct/constraint_lab.tscn",
+      "rig/full_body_lab.tscn"
+    ],
+    "direct/articulation_lab.tscn": [
+      "direct/articulation_lab.gd",
+      "direct_touch.tscn"
+    ],
+    "direct/constraint_lab.gd": [
+      "direct/articulation_lab.tscn",
+      "direct/grip_physics.gd",
+      "direct/physics_meter.gd",
+      "direct/preferences.gd",
+      "direct/touch_drag.gd",
+      "direct_touch.tscn"
+    ],
+    "direct/constraint_lab.tscn": [
+      "direct/constraint_lab.gd"
+    ],
+    "direct/control_mode.gd": [],
+    "direct/direct_lab.gd": [
+      "direct/constraint_lab.tscn",
+      "direct/control_mode.gd",
+      "direct/drag_cube.tscn",
+      "direct/fabric.tscn",
+      "direct/fabrics/light_cotton.tres",
+      "direct/garment_pull.gd",
+      "direct/grip_physics.gd",
+      "direct/physics_meter.gd",
+      "direct/preferences.gd",
+      "direct/short_pull.gd",
+      "direct/strap.gd",
+      "direct/surface_picker.gd",
+      "direct/touch_drag.gd",
+      "mechanics/body_lab.gd",
+      "mechanics/hip_skin.gd",
+      "mechanics/soft_tissue.gd",
+      "rig/active/lab.tscn"
+    ],
+    "direct/drag_cube.gd": [
+      "direct/touch_drag.gd",
+      "direct_touch.tscn"
+    ],
+    "direct/drag_cube.tscn": [
+      "direct/drag_cube.gd"
+    ],
+    "direct/fabric.gd": [
+      "direct/fabric_palette.gd",
+      "direct/fabrics/heavy_cotton.tres",
+      "direct/fabrics/light_cotton.tres",
+      "direct/fabrics/silk.tres",
+      "direct/fabrics/stretch.tres",
+      "direct/physics_meter.gd",
+      "direct/preferences.gd",
+      "direct/surface_picker.gd",
+      "direct_touch.tscn"
+    ],
+    "direct/fabric.tscn": [
+      "direct/fabric.gd"
+    ],
+    "direct/fabric_palette.gd": [
+      "direct/fabric_profile.gd"
+    ],
+    "direct/fabric_profile.gd": [],
+    "direct/fabrics/heavy_cotton.tres": [
+      "direct/fabric_profile.gd"
+    ],
+    "direct/fabrics/light_cotton.tres": [
+      "direct/fabric_profile.gd"
+    ],
+    "direct/fabrics/silk.tres": [
+      "direct/fabric_profile.gd"
+    ],
+    "direct/fabrics/stretch.tres": [
+      "direct/fabric_profile.gd"
+    ],
+    "direct/garment_cage.gd": [],
+    "direct/garment_pull.gd": [
+      "direct/garment_cage.gd",
+      "direct/garment_pull.gdshader"
+    ],
+    "direct/garment_pull.gdshader": [],
+    "direct/grip_physics.gd": [],
+    "direct/physics_meter.gd": [],
+    "direct/preferences.gd": [],
+    "direct/short_pull.gd": [
+      "direct/garment_pull.gd"
+    ],
+    "direct/strap.gd": [],
+    "direct/surface_picker.gd": [],
+    "direct/touch_drag.gd": [],
+    "direct_touch.tscn": [
+      "assets/rig121.glb",
+      "candy.gdshader",
+      "direct/direct_lab.gd"
+    ],
+    "dynamic/contact.gd": [],
+    "dynamic/hand.gd": [],
+    "dynamic/lab.gd": [
+      "dynamic/contact.gd",
+      "dynamic/hand.gd",
+      "dynamic/response.gd",
+      "interaction.gd"
+    ],
+    "dynamic/response.gd": [],
+    "dynamic.tscn": [
+      "assets/full.glb",
+      "candy.gdshader",
+      "dynamic/lab.gd"
+    ],
+    "gameplay/action_composer.gd": [
+      "gameplay/action_library.gd",
+      "rig/balance_lab.gd"
+    ],
+    "gameplay/action_library.gd": [],
+    "gameplay/camera_overlay.gd": [],
+    "gameplay/customization_manager.gd": [
+      "rig/active/muscle_profile.gd"
+    ],
+    "gameplay/external_stimulus_controller.gd": [],
+    "gameplay/gameplay.gd": [
+      "cloth/controller.gd",
+      "gameplay/action_composer.gd",
+      "gameplay/action_library.gd",
+      "gameplay/camera_overlay.gd",
+      "gameplay/customization_manager.gd",
+      "gameplay/external_stimulus_controller.gd",
+      "gameplay/gameplay_ui_controller.gd",
+      "gameplay/interaction_mode_manager.gd",
+      "gameplay/visualization_manager.gd",
+      "rig/active/lab.gd"
+    ],
+    "gameplay/gameplay_ui_controller.gd": [
+      "direct/articulation_lab.tscn",
+      "direct_touch.tscn",
+      "rig/active/lab.tscn",
+      "rig/balance_lab.tscn",
+      "rig/full_body_lab.tscn"
+    ],
+    "gameplay/interaction_mode_manager.gd": [
+      "direct/surface_picker.gd"
+    ],
+    "gameplay/main.tscn": [
+      "gameplay/gameplay.gd",
+      "rig/active/natural.tres",
+      "rig/balance_lab.tscn"
+    ],
+    "gameplay/visualization_manager.gd": [],
+    "gameplay/wardrobe.gdshader": [],
+    "interaction.gd": [],
+    "mechanics/body_lab.gd": [
+      "mechanics/moving_contact.gd",
+      "mechanics/posture.gd",
+      "mobile/touch_lab.gd"
+    ],
+    "mechanics/hip_skin.gd": [],
+    "mechanics/moving_contact.gd": [],
+    "mechanics/posture.gd": [
+      "precision/pose_solver.gd"
+    ],
+    "mechanics/soft_tissue.gd": [],
+    "mechanics_lab.tscn": [
+      "assets/rig121.glb",
+      "candy.gdshader",
+      "mechanics/body_lab.gd"
+    ],
+    "mobile/roteiro_teste.gd": [
+      "mobile_lab.tscn"
+    ],
+    "mobile/touch_lab.gd": [
+      "precision/lab.gd"
+    ],
+    "mobile_lab.tscn": [
+      "assets/rig11.glb",
+      "candy.gdshader",
+      "mobile/touch_lab.gd"
+    ],
+    "mobile_test.tscn": [
+      "mobile/roteiro_teste.gd"
+    ],
+    "precision/contact.gd": [],
+    "precision/hand.gd": [],
+    "precision/lab.gd": [
+      "interaction.gd",
+      "precision/contact.gd",
+      "precision/hand.gd",
+      "precision/pose_solver.gd",
+      "precision/response.gd"
+    ],
+    "precision/pose_solver.gd": [],
+    "precision/response.gd": [],
+    "precision_lab.tscn": [
+      "assets/rig11.glb",
+      "candy.gdshader",
+      "precision/lab.gd"
+    ],
+    "project.godot": [
+      "gameplay/main.tscn"
+    ],
+    "rig/active/active_body.gd": [
+      "rig/active/muscle_profile.gd",
+      "rig/active/segment.gd"
+    ],
+    "rig/active/lab.gd": [
+      "rig/active/active_body.gd",
+      "rig/active/muscle_profile.gd",
+      "rig/active/pose_editor.gd",
+      "rig/active/pose_library.gd",
+      "rig/active/pose_reference.gd",
+      "rig/balance_lab.gd",
+      "rig/balance_lab.tscn"
+    ],
+    "rig/active/lab.tscn": [
+      "rig/active/lab.gd",
+      "rig/active/natural.tres",
+      "rig/balance_lab.tscn"
+    ],
+    "rig/active/muscle_profile.gd": [],
+    "rig/active/natural.tres": [
+      "rig/active/muscle_profile.gd"
+    ],
+    "rig/active/pose_editor.gd": [
+      "rig/active/pose_library.gd",
+      "rig/active/pose_reference.gd"
+    ],
+    "rig/active/pose_library.gd": [
+      "rig/active/pose_reference.gd"
+    ],
+    "rig/active/pose_reference.gd": [],
+    "rig/active/segment.gd": [],
+    "rig/balance_lab.gd": [
+      "rig/active/lab.tscn",
+      "rig/full_body_lab.gd",
+      "rig/ground_balance.gd"
+    ],
+    "rig/balance_lab.tscn": [
+      "rig/balance_lab.gd",
+      "rig/full_body_lab.tscn"
+    ],
+    "rig/character_profile.gd": [],
+    "rig/full_body_lab.gd": [
+      "direct/articulation_lab.tscn",
+      "rig/balance_lab.tscn",
+      "rig/character_profile.gd",
+      "rig/full_body_pose.gd",
+      "rig/legacy_rose_skin.gd"
+    ],
+    "rig/full_body_lab.tscn": [
+      "rig/full_body_lab.gd",
+      "rig/rose_131.tres"
+    ],
+    "rig/full_body_pose.gd": [
+      "mechanics/posture.gd"
+    ],
+    "rig/ground_balance.gd": [],
+    "rig/legacy_rose_skin.gd": [
+      "mechanics/hip_skin.gd"
+    ],
+    "rig/rose_131.tres": [
+      "assets/rig121.glb",
+      "rig/character_profile.gd"
+    ],
+    "tests/active_cost_test.gd": [
+      "rig/active/lab.tscn",
+      "rig/balance_lab.tscn"
+    ],
+    "tests/active_integration_test.gd": [
+      "rig/active/active_body.gd",
+      "rig/active/lab.tscn"
+    ],
+    "tests/active_ragdoll_test.gd": [
+      "rig/active/lab.tscn"
+    ],
+    "tests/articulation_test.gd": [
+      "direct/articulation_lab.tscn",
+      "direct_touch.tscn"
+    ],
+    "tests/balance_frame_test.gd": [
+      "rig/balance_lab.tscn"
+    ],
+    "tests/balance_test.gd": [
+      "rig/balance_lab.tscn"
+    ],
+    "tests/cloth_contact_test.gd": [
+      "cloth/xpbd.gd"
+    ],
+    "tests/cloth_cost_test.gd": [
+      "gameplay/main.tscn"
+    ],
+    "tests/cloth_gameplay_test.gd": [
+      "gameplay/main.tscn"
+    ],
+    "tests/cloth_physics_test.gd": [
+      "cloth/accessory.gd",
+      "cloth/material_profile.gd"
+    ],
+    "tests/cloth_visual_test.gd": [
+      "gameplay/main.tscn"
+    ],
+    "tests/constraint_test.gd": [
+      "direct/constraint_lab.tscn"
+    ],
+    "tests/direct_touch_test.gd": [
+      "direct/drag_cube.tscn",
+      "direct/fabric.tscn",
+      "direct_touch.tscn"
+    ],
+    "tests/dynamic_pose_test.gd": [
+      "rig/active/lab.tscn",
+      "rig/active/pose_library.gd",
+      "rig/active/pose_reference.gd"
+    ],
+    "tests/dynamic_test.gd": [
+      "dynamic.tscn"
+    ],
+    "tests/fabric_profiles_test.gd": [
+      "direct/fabric.tscn",
+      "direct/fabric_palette.gd"
+    ],
+    "tests/foundation_contract_test.gd": [
+      "direct/surface_picker.gd",
+      "gameplay/main.tscn"
+    ],
+    "tests/foundation_fit_test.gd": [
+      "gameplay/main.tscn"
+    ],
+    "tests/foundation_motion_test.gd": [
+      "assets/rig121.glb",
+      "gameplay/main.tscn"
+    ],
+    "tests/full_body_rig_test.gd": [
+      "assets/rig121.glb",
+      "rig/character_profile.gd",
+      "rig/full_body_lab.tscn",
+      "rig/full_body_pose.gd"
+    ],
+    "tests/gameplay_cost_test.gd": [
+      "gameplay/main.tscn",
+      "rig/active/lab.tscn"
+    ],
+    "tests/gameplay_test.gd": [
+      "gameplay/action_composer.gd",
+      "gameplay/customization_manager.gd",
+      "gameplay/main.tscn",
+      "rig/active/pose_library.gd"
+    ],
+    "tests/gameplay_visual_check.gd": [
+      "gameplay/main.tscn"
+    ],
+    "tests/interaction_test.gd": [
+      "demo.tscn"
+    ],
+    "tests/mechanics_test.gd": [
+      "mechanics_lab.tscn"
+    ],
+    "tests/mesh_integrity_test.gd": [
+      "assets/rig121.glb",
+      "direct/surface_picker.gd",
+      "direct_touch.tscn"
+    ],
+    "tests/mobile_touch_test.gd": [
+      "mobile_lab.tscn"
+    ],
+    "tests/platform_controls_test.gd": [
+      "direct/control_mode.gd",
+      "direct/garment_pull.gd",
+      "direct/strap.gd",
+      "direct_touch.tscn"
+    ],
+    "tests/precision_test.gd": [
+      "precision_lab.tscn"
+    ],
+    "tests/responsiveness_test.gd": [
+      "direct/constraint_lab.tscn",
+      "direct/fabric.tscn",
+      "direct/grip_physics.gd",
+      "direct/preferences.gd",
+      "direct_touch.tscn"
+    ],
+    "tests/short_pull_test.gd": [
+      "direct/garment_pull.gd",
+      "direct/short_pull.gd",
+      "direct_touch.tscn"
+    ],
+    "tests/strap_test.gd": [
+      "direct/garment_pull.gd",
+      "direct/strap.gd",
+      "direct_touch.tscn"
+    ],
+    "tests/tissue_test.gd": [
+      "direct_touch.tscn"
+    ],
+    "tests/worn_response_test.gd": [
+      "gameplay/main.tscn"
+    ],
+    "tools/export_rig_base.gd": [
+      "rig/full_body_lab.tscn"
+    ],
+    "tools/foundation_probe.gd": [
+      "gameplay/main.tscn"
+    ],
+    "tools/garment_capture.gd": [
+      "gameplay/main.tscn"
+    ]
+  },
+  "broken": [],
+  "blender_and_python_scripts": [
+    "mechanics/build_knees.py",
+    "mechanics/rebind.py",
+    "tools/audit_foundation.py",
+    "tools/build_full.py",
+    "tools/export_rose.py",
+    "tools/rig_11.py",
+    "tools/validate_gameplay.py"
+  ],
+  "models": {
+    "full.glb": {
+      "meshes": 14,
+      "materials": 26,
+      "skins": [],
+      "animations": 0,
+      "nodes": [
+        "Body",
+        "Face",
+        "Eyes",
+        "GlintR",
+        "GlintL",
+        "Slipper",
+        "Slipper.001",
+        "Dress",
+        "Ribbon",
+        "Shorts",
+        "PocketL",
+        "PocketR",
+        "Hair",
+        "Locks"
+      ]
+    },
+    "rig11.glb": {
+      "meshes": 14,
+      "materials": 26,
+      "skins": [
+        9
+      ],
+      "animations": 0,
+      "nodes": [
+        "Body",
+        "Dress",
+        "Eyes",
+        "Face",
+        "GlintL",
+        "GlintR",
+        "Hair",
+        "Locks",
+        "PocketL",
+        "PocketR",
+        "Ribbon",
+        "Shorts",
+        "Slipper",
+        "Slipper.001"
+      ]
+    },
+    "rig121.glb": {
+      "meshes": 14,
+      "materials": 26,
+      "skins": [
+        9
+      ],
+      "animations": 0,
+      "nodes": [
+        "Body",
+        "Dress",
+        "Eyes",
+        "Face",
+        "GlintL",
+        "GlintR",
+        "Hair",
+        "Locks",
+        "PocketL",
+        "PocketR",
+        "Ribbon",
+        "Shorts",
+        "Slipper",
+        "Slipper.001"
+      ]
+    },
+    "rose_portrait.glb": {
+      "meshes": 8,
+      "materials": 19,
+      "skins": [],
+      "animations": 0,
+      "nodes": [
+        "Face",
+        "Eyes",
+        "EyeGlintR",
+        "EyeGlintL",
+        "HairBase",
+        "HairLocks",
+        "Shoulders",
+        "Top"
+      ]
+    }
+  },
+  "scene_boot": [
+    {
+      "scene": "demo.tscn",
+      "passed": true,
+      "output": "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org"
+    },
+    {
+      "scene": "direct/articulation_lab.tscn",
+      "passed": true,
+      "output": "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org"
+    },
+    {
+      "scene": "direct/constraint_lab.tscn",
+      "passed": true,
+      "output": "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org"
+    },
+    {
+      "scene": "direct/drag_cube.tscn",
+      "passed": true,
+      "output": "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org"
+    },
+    {
+      "scene": "direct/fabric.tscn",
+      "passed": true,
+      "output": "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org"
+    },
+    {
+      "scene": "direct_touch.tscn",
+      "passed": true,
+      "output": "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org"
+    },
+    {
+      "scene": "dynamic.tscn",
+      "passed": true,
+      "output": "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org"
+    },
+    {
+      "scene": "gameplay/main.tscn",
+      "passed": true,
+      "output": "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org"
+    },
+    {
+      "scene": "mechanics_lab.tscn",
+      "passed": true,
+      "output": "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org"
+    },
+    {
+      "scene": "mobile_lab.tscn",
+      "passed": true,
+      "output": "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org"
+    },
+    {
+      "scene": "mobile_test.tscn",
+      "passed": true,
+      "output": "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org\n\nmobile touch checks, failures = 0"
+    },
+    {
+      "scene": "precision_lab.tscn",
+      "passed": true,
+      "output": "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org"
+    },
+    {
+      "scene": "rig/active/lab.tscn",
+      "passed": true,
+      "output": "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org"
+    },
+    {
+      "scene": "rig/balance_lab.tscn",
+      "passed": true,
+      "output": "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org"
+    },
+    {
+      "scene": "rig/full_body_lab.tscn",
+      "passed": true,
+      "output": "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org"
+    }
+  ]
+}

@@ -27,6 +27,7 @@ var base_paused:=false
 func _ready()->void:
     super()
     if not ready_to_pose:return
+    get_window().title="ROSE · Foundation Refinement"
     for key in draw:draw[key]=false
     draw_reference=false
     display_forces=false
@@ -36,11 +37,11 @@ func _ready()->void:
     add_child(cloth)
     cloth.configure(self,interaction_mode.picker)
     interaction_mode.cloth=cloth
-    interface.build_cloth_controls()
     customizations.load_all()
     interface.refresh_customizations()
     framing.apply(camera)
     if preferences.load("user://gameplay_ui.cfg")==OK:
+        cloth.set_accessory_enabled(bool(preferences.get_value("cloth","accessory",true)))
         interface.set_minimal(bool(preferences.get_value("ui","minimal",false)))
         var angles:Vector2=preferences.get_value("camera","angles",Vector2(26,12))
         framing.yaw=clampf(angles.x,-180.,180.)
@@ -49,6 +50,7 @@ func _ready()->void:
         interaction_mode.mode=clampi(int(preferences.get_value("ui","mode",0)),0,2)
         interface.mode_menu.select(interaction_mode.mode)
         framing.apply(camera)
+    interface.build_cloth_controls()
     get_window().size_changed.connect(resize_game)
     resize_game()
 
@@ -90,8 +92,9 @@ func tick_reference(dt:float)->void:
 
 func compose_custom_reference(target:Dictionary)->Dictionary:
     if mode!=ReferenceMode.CUSTOM:return target
-    var result:=target.duplicate(true)
     var additions:=composer.offsets()
+    if additions.is_empty():return target
+    var result:=target.duplicate(true)
     additions.erase("pelvis") # Na pose salva os apoios e a altura permanecem definidos pelo usuário.
     for role in additions:
         result.angles[role]=pose_reference.clamp_angles(role,result.angles[role]+additions[role])
@@ -100,9 +103,11 @@ func compose_custom_reference(target:Dictionary)->Dictionary:
 func select_reference_mode(value:int)->void:
     super(value)
     move_menu.hide()
-    if value==ReferenceMode.CUSTOM:composer.base=5
+    if value==ReferenceMode.CUSTOM:composer.select_base(5)
     elif value==ReferenceMode.AUTOMATIC and composer.base==5:composer.base=1 if automatic_movement==6 else (4 if automatic_movement==1 else 0)
-    if interface.base_menu!=null:interface.base_menu.select(composer.base)
+    if interface.base_menu!=null:
+        interface.base_menu.select(composer.base)
+        interface.refresh_actions()
 
 func save_pose(title:String)->Error:
     var result:=super(title)
@@ -114,6 +119,7 @@ func restore_original()->void:
     pose_editor.hide()
 
 func save_preferences()->void:
+    preferences.set_value("cloth","accessory",cloth.accessory_enabled)
     preferences.set_value("ui","mode",interaction_mode.mode)
     preferences.set_value("camera","angles",Vector2(framing.yaw,framing.pitch))
     preferences.set_value("camera","zoom",framing.zoom)
@@ -125,21 +131,33 @@ func _exit_tree()->void:
     interface.game=null
     super()
 
+var ui_elapsed:=0.
+
+func needs_diagnostics()->bool:
+    return performance_visible or draw.bone or draw.com or draw.ik or draw.limit or draw_reference or display_forces or display_torque
+
 func _physics_process(dt:float)->void:
     super(dt)
     if not ready_to_pose:return
     stimulus.step(core,dt)
     cloth.step(dt)
+    ui_elapsed+=dt
+    if ui_elapsed<.10:return
+    ui_elapsed=0.
+    var active_names:=composer.active_text()
     interface.cloth_readout.visible=performance_visible
     if performance_visible:interface.cloth_readout.text="Tecidos · física %.2f ms · malha %.2f ms"%[cloth.physics_us*.001,cloth.render_us*.001]
-    interface.status.text=Library.BASES[composer.base]+" · "+Muscle.STATES[core.state]+"\n"+composer.active_text()
-    interface.active_list.text="Ativas: "+composer.active_text() if not composer.active_text().is_empty() else "Nenhuma ação complementar ativa"
+    var status_text:=cloth.feedback if not cloth.feedback.is_empty() else active_names
+    if mode==ReferenceMode.FREE and not active_names.is_empty():status_text="Livre · ações em espera"
+    interface.status.text=Library.BASES[composer.base]+" · "+Muscle.STATES[core.state]+"\n"+status_text
+    interface.active_list.text="Ativas: "+active_names if not active_names.is_empty() else "Nenhuma ação complementar ativa"
     readout.visible=performance_visible
-    interface.sync_camera()
+    if interface.action_widgets.enabled.button_pressed!=composer.actions[interface.chosen_action].enabled:interface.refresh_actions()
+    if interface.camera_box.is_visible_in_tree():interface.sync_camera()
 
 func set_interaction(index:int)->void:
     end_drag()
-    interaction_mode.release()
+    interaction_mode.release(false)
     gesture_id=-2
     camera_gestures.clear()
     interaction_mode.mode=index
@@ -160,7 +178,7 @@ func _unhandled_input(event:InputEvent)->void:
 
 func start_gesture(id:int,pixel:Vector2)->void:
     if interaction_mode.mode==2:
-        camera_gestures[id]=pixel
+        if camera_gestures.size()<2:camera_gestures[id]=pixel
     elif gesture_id==-2 and interaction_mode.begin(camera,pixel):
         gesture_id=id
         gesture_previous=pixel
@@ -201,7 +219,7 @@ func _input(event:InputEvent)->void:
         get_viewport().set_input_as_handled()
     elif id==gesture_id:
         if release:
-            interaction_mode.release()
+            interaction_mode.release(not (event is InputEventScreenTouch and event.canceled))
             gesture_id=-2
         else:interaction_mode.drag(position_)
         get_viewport().set_input_as_handled()
@@ -210,7 +228,7 @@ func _notification(what:int)->void:
     super(what)
     if what==NOTIFICATION_APPLICATION_FOCUS_OUT:
         camera_gestures.clear()
-        interaction_mode.release()
+        interaction_mode.release(false)
         gesture_id=-2
 
 func reference_time_delta(dt:float)->float:

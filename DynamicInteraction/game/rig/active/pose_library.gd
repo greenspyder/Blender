@@ -41,15 +41,7 @@ func save_pose(title:String,pose:Dictionary)->Error:
     if not entries.has(title) and entries.size()>=MAX_POSES:return ERR_OUT_OF_MEMORY
     var candidate:=entries.duplicate()
     candidate[title]=pose.duplicate(true)
-    var cfg:=ConfigFile.new()
-    cfg.set_value("library","version",FORMAT)
-    cfg.set_value("library","poses",candidate)
-    var temp:=path+".tmp"
-    var result:=cfg.save(temp)
-    if result==OK:result=DirAccess.rename_absolute(temp,path)
-    if result==OK:entries=candidate
-    return result
-
+    return replace_entries(candidate)
 
 func replace_entries(candidate:Dictionary)->Error:
     if candidate.size()>MAX_POSES:return ERR_OUT_OF_MEMORY

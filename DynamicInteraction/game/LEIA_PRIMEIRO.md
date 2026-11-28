@@ -1,7 +1,9 @@
-# ROSE 1.3.3.2.1
+# ROSE 1.3.3.2.2 · Foundation Refinement
 
 Importe `project.godot` e execute o projeto para entrar diretamente no jogo.
 
+- [Guia desta versão para jogar no Android e no PC](GUIA_FOUNDATION_1_3_3_2_2.md)
+- [Auditoria, medições e capturas antes/depois](AUDITORIA_FOUNDATION_1_3_3_2_2.md)
 - [Tutorial da interface, ações e personalizações](GUIA_GAMEPLAY_1_3_3_2.md)
 - [Resultados de validação e limitações](VALIDACAO_1_3_3_2.md)
 - [Referências posturais da 1.3.3.1](GUIA_POSTURAS_1_3_3_1.md)

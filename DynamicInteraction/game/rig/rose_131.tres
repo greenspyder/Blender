@@ -7,3 +7,10 @@
 script = ExtResource("1")
 model = ExtResource("2")
 add_legacy_rose_bones = true
+garment_fit_regions = Array[Dictionary]([{
+"piece": "Dress", "label": "Alça", "center": Vector3(0.122, 1.656, 0), "extent": Vector3(0.086, 0.089, 0.23), "mirror": true, "travel": 0.038
+}, {
+"piece": "Dress", "label": "Barra", "center": Vector3(0.135, 1.201, 0.018), "extent": Vector3(0.15, 0.085, 0.25), "mirror": true, "travel": 0.024
+}, {
+"piece": "Shorts", "label": "Cós", "center": Vector3(0.158, 1.116, 0.012), "extent": Vector3(0.176, 0.081, 0.29), "mirror": true, "travel": 0.02
+}])

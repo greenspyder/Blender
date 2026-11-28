@@ -19,6 +19,9 @@ const MASS_SEGMENTS := [
 
 @export var model:PackedScene
 @export var add_legacy_rose_bones:=false
+@export_node_path("Skeleton3D") var skeleton_path:NodePath
+## Região elipsoidal no bind da peça, curso em comprimentos de perna.
+@export var garment_fit_regions:Array[Dictionary]=[]
 @export var bones:Dictionary={
  "pelvis":"Base", "lumbar":"Lumbar", "chest":"Spine", "head":"Head",
  "upper_l":"UpperL", "fore_l":"ForeL", "palm_l":"PalmL",
@@ -30,7 +33,7 @@ const MASS_SEGMENTS := [
 @export var shape_keys:PackedStringArray=["blink_l", "blink_r", "smile", "brow_up", "mouth_open", "chest_press", "hip_press"]
 @export var mesh_roles:Dictionary={
  "skin":"Body", "face":"Face", "upper_clothes":["Dress","Ribbon"],
- "lower_clothes":["Shorts","PocketL","PocketR"], "shoes":["Slipper","Slipper.001"],
+ "lower_clothes":["Shorts","PocketL","PocketR"], "shoes":["Slipper","Slipper_001"],
 }
 @export_group("Limites articulares · graus")
 @export var pelvis_limit:=Vector3(28.,32.,20.)
@@ -40,6 +43,9 @@ const MASS_SEGMENTS := [
 @export var hip_limit:=Vector3(86.,32.,42.)
 @export var knee_limit:=Vector2(4.,116.)
 @export var ankle_limit:=Vector3(35.,20.,18.)
+@export var arm_rest_angles:=Vector3(13.,24.,0.) # elevação, flexão, rotação axial
+@export_range(0.,25.,.5) var walk_arm_swing:=12.
+@export var elbow_pole:=Vector3(.40,-.10,-.90) # lado exterior, vertical, frente no tórax
 @export var shoulder_limit:=150.
 @export var elbow_limit:=Vector2(12.,128.)
 @export var wrist_limit:=65.
@@ -70,6 +76,12 @@ func validate(sk:Skeleton3D)->PackedStringArray:
  var ids:=resolve(sk)
  var issues:=PackedStringArray()
  var used:Dictionary={}
+ if not is_finite(mass_kg) or mass_kg<=0.:issues.append("Massa corporal inválida")
+ for category in mass_proportions:
+  var mass:float=mass_proportions[category]
+  if not is_finite(mass) or mass<=0.:issues.append("Fração de massa inválida · "+str(category))
+ for segment in MASS_SEGMENTS:
+  if not mass_proportions.has(segment[2]):issues.append("Falta a fração de massa · "+str(segment[2]))
  for role in PARENTS.keys()+["pelvis"]:
   var bone:int=ids.get(role,-1)
   if bone<0:
@@ -87,8 +99,6 @@ func validate(sk:Skeleton3D)->PackedStringArray:
   var a:int=ids.get(pair[0],-1)
   var b:int=ids.get(pair[1],-1)
   if a>=0 and b>=0:
-   if sk.get_bone_parent(b)!=a:
-    issues.append("Cadeia direta esperada · %s → %s"%pair)
    if sk.get_bone_global_rest(a).origin.distance_to(sk.get_bone_global_rest(b).origin)<.01:
     issues.append("Segmento degenerado · %s → %s"%pair)
  return issues
@@ -100,8 +110,12 @@ static func descends_from(sk:Skeleton3D,bone:int,ancestor:int)->bool:
   index=sk.get_bone_parent(index)
  return false
 
-func segment_mass(kind:String)->float:
- var sum:=0.
- for segment in MASS_SEGMENTS:sum+=maxf(0.,mass_proportions.get(segment[2],0.))
+func mass_total()->float:
+ var total:=0.
+ for segment in MASS_SEGMENTS:total+=maxf(0.,mass_proportions.get(segment[2],0.))
+ return total
+
+func segment_mass(kind:String,sum:float=-1.)->float:
+ if sum<0.:sum=mass_total()
  if sum<=0.:return 0.
  return mass_kg*maxf(0.,mass_proportions.get(kind,0.))/sum

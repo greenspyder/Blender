@@ -15,7 +15,7 @@ var mode_menu:OptionButton
 var base_menu:OptionButton
 var camera_sliders:Dictionary={}
 var minimal_toggle:CheckButton
-var chosen_action:="flex"
+var chosen_action:="squat"
 var action_widgets:Dictionary={}
 var action_message:Label
 var active_list:Label
@@ -74,7 +74,7 @@ func create(owner)->VBoxContainer:
         slider.min_value=entry[2]
         slider.max_value=entry[3]
         slider.step=.05 if key=="zoom" else 1.
-        slider.custom_minimum_size.y=38
+        slider.custom_minimum_size.y=44
         camera_box.add_child(slider)
         camera_sliders[key]={"slider":slider,"label":label,"title":entry[1]}
         slider.value_changed.connect(func(v):game.framing.set(key,v);game.framing.apply(game.camera))
@@ -138,7 +138,7 @@ func build(_unused:VBoxContainer)->void:
         slider.min_value=entry[2]
         slider.max_value=entry[3]
         slider.step=.05
-        slider.custom_minimum_size.y=38
+        slider.custom_minimum_size.y=44
         actions.add_child(slider)
         action_widgets[key]=slider
         action_widgets[key+"_label"]=caption
@@ -191,7 +191,7 @@ func build(_unused:VBoxContainer)->void:
         slider.min_value=game.Muscle.RANGES[i][0]
         slider.max_value=game.Muscle.RANGES[i][1]
         slider.step=.05 if i in [1,4,5] else 1.
-        slider.custom_minimum_size.y=38
+        slider.custom_minimum_size.y=44
         tuning.add_child(slider)
         game.controls.append(slider)
         slider.value_changed.connect(game.edit_value.bind(i))
@@ -271,6 +271,8 @@ func manage_muscles(op:String)->void:
                 game.custom=game.muscles.duplicate(true)
                 game.preset_menu.select(3)
                 game.core.settings=game.muscles
+                game.pose_reference.muscles=game.muscles
+                game.pose_editor.refresh()
                 game.refresh_limits()
                 game.sync_controls()
         "Duplicar","Renomear":result=game.customizations.rename(title,muscle_name.text,op=="Duplicar")
@@ -280,6 +282,9 @@ func manage_muscles(op:String)->void:
 
 func manage_pose(op:String)->void:
     var title:=pose_management.get_item_text(pose_management.selected)
+    if game.pose_library_error!=OK:
+        pose_message.text=error_string(game.pose_library_error)
+        return
     if not game.pose_library.entries.has(title):
         pose_message.text="Selecione uma postura."
         return
@@ -293,6 +298,9 @@ func manage_pose(op:String)->void:
     if op!="Duplicar":candidate.erase(title)
     var result:int=game.pose_library.replace_entries(candidate)
     pose_message.text="Concluído" if result==OK else "Falha · "+error_string(result)
+    if result==OK and game.pose_title==title:
+        if op=="Renomear":game.pose_title=new_name
+        elif op=="Excluir":game.pose_title="Postura editada"
     game.pose_editor.update_saved()
     refresh_customizations()
 
@@ -309,6 +317,9 @@ func build_cloth_controls()->void:
     var parent:VBoxContainer=sections["Personalizações"]
     game.button(parent,"Tecidos",func():panel_.visible=not panel_.visible)
     parent.add_child(panel_);panel_.hide()
+    game.checkbox(panel_,"Simular pano independente",game.cloth.accessory_enabled,func(value):
+        game.cloth.set_accessory_enabled(value)
+        game.save_preferences())
     var sliders_:Dictionary={}
     var labels_:Dictionary={}
     var menu:OptionButton=game.dropdown(panel_,game.cloth.Profile.NAMES,func(index):

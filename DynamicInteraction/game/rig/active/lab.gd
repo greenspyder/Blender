@@ -90,6 +90,7 @@ func _ready()->void:
     solver.configure(reference,profile)
     add_child(core)
     core.build(skin,reference,profile,muscles,balance.length_scale)
+    balance.supported_weight_fraction=muscles.weight_assist
     core.select_state(initial_state)
     for role in core.gain:core.gain[role]=muscles.state_strength[initial_state]
     previous_hz=Engine.physics_ticks_per_second
@@ -145,7 +146,11 @@ func select_state(value:int)->void:
     core.select_state(value)
     state_menu.select(value)
 
-func adjust_reference(_dt:float)->void:
+func adjust_reference(dt:float)->void:
+    # A referência de pé compensa parte da deflexão estática da mola das solas.
+    # A carga migra progressivamente ao sentar ou iniciar a queda.
+    var standing_share:=muscles.weight_assist if movement not in [6,7] else 0.
+    balance.supported_weight_fraction=move_toward(balance.supported_weight_fraction,standing_share,dt*2.)
     if core.active_support.size()==1 and core.active_support[0] in ["foot_l","foot_r"]:
         var support:Vector3=core.bodies[core.active_support[0]].support_point
         var error:=support-core.com
@@ -163,8 +168,14 @@ func adjust_reference(_dt:float)->void:
         preview.arm_l=Vector3(45.,60.,0.)
         preview.arm_r=preview.arm_l
     else:
-        preview.arm_l=Vector3(22.,45.,0.)
+        preview.arm_l=profile.arm_rest_angles
         preview.arm_r=preview.arm_l
+    for i in 2:
+        var side:String=FullBody.SIDES[i]
+        var swing:=0.
+        if movement==1:swing=profile.walk_arm_swing*sin(TAU*(elapsed/.98+i*.5))
+        elif movement==6:swing=12.*smoothstep(0.,1.2,elapsed)
+        preview["swing_"+side]=Vector3(swing,0.,0.)
     if movement==7 and not fall_started and elapsed>1.:
         fall_started=true
         select_state(3)
@@ -307,20 +318,12 @@ func _physics_process(dt:float)->void:
     debug_elapsed+=dt
     if debug_elapsed<(0.20 if quality==1 else 0.065):return
     debug_elapsed=0.
+    if not needs_diagnostics():
+        if lines.get_surface_count()>0:lines.clear_surfaces()
+        return
     draw_pose()
-    var feet:=0
-    var points:=PackedVector2Array()
-    for role in core.active_support:
-        if role.begins_with("foot"):feet+=1
-        var body:RigidBody3D=core.bodies[role]
-        var support:Vector3=body.get("support_point")
-        if role.begins_with("foot"):
-            var box:BoxShape3D=body.get_child(0).shape
-            for x in [-.5,.5]:
-                for z in [-.5,.5]:
-                    var corner:=body.to_global(box.size*Vector3(x,-.5,z))
-                    points.append(Vector2(corner.x,corner.z))
-        else:points.append(Vector2(support.x,support.z))
+    var feet:=int("foot_l" in core.active_support)+int("foot_r" in core.active_support)
+    var points:=core.support_outline(seat,false)
     var hull:=Geometry2D.convex_hull(points) if points.size()>2 else PackedVector2Array()
     var stable:=hull.size()>2 and Geometry2D.is_point_in_polygon(Vector2(core.com.x,core.com.z),hull)
     physical_support="COM dentro da base" if stable else ("Sem contato" if points.is_empty() else "COM fora da base")
@@ -329,6 +332,9 @@ func _physics_process(dt:float)->void:
     var current_pose:String=automatic_names[movement] if mode==ReferenceMode.AUTOMATIC else (pose_title if mode==ReferenceMode.CUSTOM else "Última referência")
     readout.text="%s · %s\n%s\n%s%s · %d pé(s) · %d apoio(s)\nErro RMS %.1f cm · %.2f ms/tick"%[
         REFERENCE_MODES[mode],Muscle.STATES[core.state],current_pose,physical_support,warning,feet,core.active_support.size(),core.rms*100.,mean_ms]
+
+func needs_diagnostics()->bool:
+    return true
 
 func draw_pose()->void:
     lines.clear_surfaces()
@@ -433,19 +439,10 @@ func _notification(what:int)->void:
 
 func pull_segment(dt:float)->void:
     if drag_role.is_empty():return
-    var b:RigidBody3D=core.bodies[drag_role]
-    var group:=muscles.group(drag_role)
-    var arm:=b.global_basis*drag_local
-    var velocity:=b.linear_velocity+b.angular_velocity.cross(arm)
-    var k:float=muscles.stiffness[group]
-    var d:float=2.*sqrt(k)*muscles.damping[group]
-    var acceleration:=((drag_goal-b.global_position-arm)*k-velocity*d)/(1.+dt*d)
-    var force:=(acceleration*profile.mass_kg).limit_length(muscles.max_force[group])
-    b.apply_central_force(force)
-    var torque:=arm.cross(force).limit_length(muscles.max_torque[group])
-    b.apply_torque(torque)
-    grab_force=force
-    grab_torque=torque
+    var applied:=core.apply_grip(drag_role,drag_local,drag_goal,dt)
+    if not applied.is_empty():
+        grab_force=applied.force
+        grab_torque=applied.torque
 
 func toggle_pose_editor()->void:
     pose_editor.visible=not pose_editor.visible
@@ -563,17 +560,7 @@ func tick_reference(dt:float)->void:
 
 func custom_support()->float:
     # A sustentação cede quando a referência desloca o peso para fora dos apoios.
-    var points:=PackedVector2Array()
-    for role in core.active_support:
-        var body:RigidBody3D=core.bodies[role]
-        var seated:bool=role=="pelvis" and seat.visible and body.get("support_body")==seat
-        if not role.begins_with("foot_") and not seated:continue
-        var center:Vector3=body.get("support_point")
-        var support_shape:Vector2=Vector2(profile.sole_half_width,profile.sole_half_length)*balance.length_scale
-        if seated:support_shape=Vector2(.13,.10)*balance.length_scale
-        for x in [-1.,1.]:
-            for z in [-1.,1.]:
-                points.append(Vector2(center.x,center.z)+support_shape*Vector2(x,z))
+    var points:=core.support_outline(seat,true)
     if points.is_empty():return 0.
     var hull:=Geometry2D.convex_hull(points)
     var target:=sk.to_global(solver.center_of_mass)

@@ -71,6 +71,10 @@ func parameter(content:VBoxContainer,title:String,minimum:float,maximum:float,in
 func path_z(time:float)->float:
  return sin(time*.74)*balance.length_scale*.65
 
+# Trajetória do agachamento 1.3.2. A profundidade está em comprimentos de perna.
+static func squat_depth(phase:float)->float:
+ return .29*(.5-.5*cos(phase))
+
 func tick(dt:float)->void:
  elapsed+=reference_time_delta(dt)
  var size_:float=balance.length_scale
@@ -78,9 +82,10 @@ func tick(dt:float)->void:
  var walk:=movement==1
  var z:=path_z(elapsed) if walk else 0.
  var travel:=Vector3(0.,-.018*size_,0.)
+ preview.head=Vector3.ZERO
  var lean:=0.
  if walk:travel.x=sin(TAU*cycle)*size_*.065
- if movement==2:travel.y-=size_*.29*(.5-.5*cos(elapsed*2.))
+ if movement==2:travel.y-=size_*squat_depth(elapsed*2.)
  if movement==3:lean=17.*(.5-.5*cos(elapsed*1.8))
  if movement==4:travel.x=-size_*.13
  if movement==5:travel.x=size_*.55*sin(PI*clampf(elapsed/1.8,0.,1.))

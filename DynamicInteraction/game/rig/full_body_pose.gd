@@ -65,10 +65,13 @@ func apply(request:Dictionary,plant:Vector2,dt:float)->void:
 
 func apply_arm(i:int,side:String,dt:float)->void:
  var key:=Vector3i(bones["upper_"+side],bones["fore_"+side],bones["palm_"+side])
- var options:Vector3=smoothed.get("arm_"+side,Vector3(22.,45.,0.))
+ var options:Vector3=smoothed.get("arm_"+side,profile.arm_rest_angles)
  var elevation:=deg_to_rad(clampf(options.x,0.,profile.shoulder_limit))
  var flexion:=clampf(options.y,profile.elbow_limit.x,profile.elbow_limit.y)
  var direction:=Vector3((-1. if i==0 else 1.)*sin(elevation)*.85,-cos(elevation),.12+.25*sin(elevation)).normalized()
+ var chest_frame:Basis=(pose("chest").basis*sk.get_bone_global_rest(bones.chest).basis.inverse()).orthonormalized()
+ var swing:Vector3=smoothed.get("swing_"+side,Vector3.ZERO)
+ direction=chest_frame*direction.rotated(Vector3.RIGHT,-deg_to_rad(swing.x))
  var shoulder:=sk.get_bone_global_pose(key.x).origin
  var elbow:=sk.get_bone_global_pose(key.y).origin
  var wrist:=sk.get_bone_global_pose(key.z).origin
@@ -80,7 +83,7 @@ func apply_arm(i:int,side:String,dt:float)->void:
  arms.elbow_max=profile.elbow_limit.y
  arms.wrist_limit=profile.wrist_limit
  arms.pose_wrist[i]=options.z
- arms.solve_arm(sk,i,[],dt,1.,key)
+ arms.solve_arm(sk,i,[],dt,1.,key,chest_frame,profile.elbow_pole)
 
 func bend_knee(roles:Array,degrees:float)->void:
  var thigh:=pose(roles[0])
@@ -159,9 +162,10 @@ func calculate_mass()->void:
  masses.clear()
  center_of_mass=Vector3.ZERO
  var total:=0.
+ var mass_sum:float=profile.mass_total()
  for segment in profile.MASS_SEGMENTS:
   var point:=pose(segment[0]).origin.lerp(pose(segment[1]).origin,.5)
-  var kg:float=profile.segment_mass(segment[2])
+  var kg:float=profile.segment_mass(segment[2],mass_sum)
   masses.append({"p":point,"kg":kg})
   center_of_mass+=point*kg
   total+=kg

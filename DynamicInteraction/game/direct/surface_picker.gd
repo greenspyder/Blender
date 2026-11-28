@@ -17,13 +17,17 @@ static func intersection(o:Vector3,d:Vector3,a:Vector3,b:Vector3,c:Vector3)->Vec
 func configure(root:Node, sk:Skeleton3D, props:Array)->void:
  skeleton=sk
  for instance in root.find_children("*","MeshInstance3D",true,false)+props:
+  if not is_instance_valid(instance) or instance.mesh==null:continue
   for surface in instance.mesh.get_surface_count():
+   if instance.mesh is ArrayMesh and instance.mesh.surface_get_primitive_type(surface)!=Mesh.PRIMITIVE_TRIANGLES:continue
    register(instance,surface)
 
 func register(instance:MeshInstance3D,index:int)->void:
  var arrays:=instance.mesh.surface_get_arrays(index)
  var vertices:PackedVector3Array=arrays[Mesh.ARRAY_VERTEX]
- var indices:PackedInt32Array=arrays[Mesh.ARRAY_INDEX]
+ if vertices.is_empty():return
+ var indices:=PackedInt32Array()
+ if arrays[Mesh.ARRAY_INDEX]!=null:indices=arrays[Mesh.ARRAY_INDEX]
  if indices.is_empty():
   for i in vertices.size():indices.append(i)
  var s:={"node":instance,"surface_index":index,"vertices":vertices,"indices":indices,"shapes":[],"extent":[],"weights":arrays[Mesh.ARRAY_WEIGHTS],"joints":arrays[Mesh.ARRAY_BONES],"slots":[],"cells":{},"active":[],"relative":false}
@@ -36,7 +40,11 @@ func register(instance:MeshInstance3D,index:int)->void:
     var delta:=values[i] if s.relative else values[i]-vertices[i]
     extent=extent.max(delta.abs())
    s.shapes.append(values);s.extent.append(extent)
- if instance.skin:
+ s.influences=0
+ if instance.skin and s.weights is PackedFloat32Array and s.joints is PackedInt32Array and s.joints.size()==s.weights.size():
+  var stride:int=s.weights.size()/vertices.size()
+  if stride in [4,8] and s.weights.size()==stride*vertices.size():s.influences=stride
+ if s.influences>0:
   for i in instance.skin.get_bind_count():
    var bone:=skeleton.find_bone(instance.skin.get_bind_name(i))
    if bone<0:bone=instance.skin.get_bind_bone(i)
@@ -52,36 +60,46 @@ func register(instance:MeshInstance3D,index:int)->void:
   cell.box=cell.box.expand(a).expand(b).expand(c)
   if not s.slots.is_empty():
    for offset in 3:
-    var first:=indices[f+offset]*4
-    for j in 4:
+    var first:int=indices[f+offset]*s.influences
+    for j in s.influences:
      if s.weights[first+j]>0:cell.slots[s.joints[first+j]]=true
  var bounds:=AABB(vertices[0],Vector3.ZERO)
  for cell in s.cells.values():bounds=bounds.merge(cell.box)
  s.bounds=bounds
  surfaces.append(s)
 
-func update_surface(s:Dictionary)->void:
+func update_surface(s:Dictionary,skin_frames:Dictionary={})->void:
  s.active.clear()
  var margin:=Vector3.ZERO
  for i in s.shapes.size():
   var w:float=s.node.get_blend_shape_value(i)
   if absf(w)>.00001:
    s.active.append([i,w]);margin+=Vector3(s.extent[i])*absf(w)
- s.margin=margin
+ s.margin=margin+Vector3(s.get("display_margin",Vector3.ZERO))
+ if s.slots.is_empty():
+  s.matrix=[]
+  return
+ if skin_frames.has(s.node.skin):
+  s.matrix=skin_frames[s.node.skin]
+  return
  s.matrix=[]
  for slot in s.slots:
   s.matrix.append(skeleton.global_transform*skeleton.get_bone_global_pose(slot[0])*slot[1])
+ skin_frames[s.node.skin]=s.matrix
 
-func vertex(s:Dictionary,i:int)->Vector3:
+func vertex(s:Dictionary,i:int,displayed:=true)->Vector3:
  var base:Vector3=s.vertices[i]
  var p:=base
+ if displayed and s.has("display_vertices"):p=s.display_vertices[i]
+ var morph_base:=p
  for shape in s.active:
   var v:Vector3=s.shapes[shape[0]][i]
-  p+=(v if s.relative else v-base)*float(shape[1])
+  p+=(v if s.relative else v-morph_base)*float(shape[1])
  if s.slots.is_empty():return s.node.global_transform*p
  var result:=Vector3.ZERO
  var sum:=0.
- for j in range(i*4,i*4+4):
+ var start:int=i*s.influences
+ for j in range(start,start+s.influences):
   var w:float=s.weights[j]
   if w>0:
    result+=Vector3(s.matrix[s.joints[j]]*p)*w;sum+=w
@@ -113,9 +131,10 @@ func posed_bounds(s:Dictionary,box:AABB,slots:Array)->AABB:
 
 func prepare_query()->Array:
  var query:Array=[]
+ var skin_frames:Dictionary={}
  for s in surfaces:
   if not s.node.is_visible_in_tree():continue
-  update_surface(s)
+  update_surface(s,skin_frames)
   var box:=expanded_box(s.bounds,s.margin)
   var bounds:=posed_bounds(s,box,range(s.slots.size()))
   query.append({"surface":s,"bounds":bounds,"cells":[],"vertices":{}})

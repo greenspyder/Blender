@@ -3,6 +3,9 @@ extends RefCounted
 const Profile=preload("res://cloth/material_profile.gd")
 var material:=Profile.new()
 var position:=PackedVector3Array()
+var previous:=PackedVector3Array()
+var nearby:Array=[]
+var lengths:=PackedFloat32Array()
 var velocity:=PackedVector3Array()
 var rest:=PackedVector3Array()
 var areas:=PackedFloat32Array()
@@ -32,6 +35,9 @@ func build(points:PackedVector3Array,faces:PackedInt32Array)->void:
             var key:=Vector2i(mini(pair[0],pair[1]),maxi(pair[0],pair[1]))
             if opposites.has(key):join(opposites[key],pair[2],true)
             else:opposites[key]=pair[2]
+    nearby.clear()
+    for i in points.size():nearby.append([])
+    lengths.resize(edges.size())
     set_material(material)
 func join(a:int,b:int,bend_:bool)->void:
     if a==b:return
@@ -47,34 +53,66 @@ func set_material(profile:Resource)->void:
 func wake()->void:
     sleeping=false;quiet_steps=0
 func begin_hold(face:int,bary:Vector3,goal:Vector3)->void:
-    hold={"face":face,"bary":bary,"goal":goal,"lambda":Vector3.ZERO}
+    if face<0 or face+2>=triangles.size():return
+    begin_weighted_hold(triangles.slice(face,face+3),PackedFloat32Array([bary.x,bary.y,bary.z]),goal)
+    hold.face=face
+    hold.bary=bary
+
+func begin_weighted_hold(ids:PackedInt32Array,weights:PackedFloat32Array,goal:Vector3)->void:
+    hold={"ids":ids,"weights":weights,"goal":goal,"lambda":Vector3.ZERO}
     wake()
+
+func grip_position(ids:PackedInt32Array,weights:PackedFloat32Array)->Vector3:
+    var p:=Vector3.ZERO
+    for j in ids.size():p+=position[ids[j]]*weights[j]
+    return p
 func release()->void:
     hold.clear();wake()
 func step(h:float,colliders:Array=[])->void:
     if sleeping and targets.is_empty() and hold.is_empty():return
-    var before:=position.duplicate()
-    var nearby:Array=[]
-    for point in position:
-        var list_:Array=[]
-        for collider in colliders:
-            if collider.kind=="plane" or point.distance_squared_to(collider.center)<pow(float(collider.radius)+.12,2.):list_.append(collider)
-        nearby.append(list_)
+    if position.is_empty():return
+    previous=position.duplicate()
+    var bounds:=AABB(position[0],Vector3.ZERO)
+    for i in position.size():
+        nearby[i].clear()
+        bounds=bounds.expand(position[i])
+        if not targets.is_empty():bounds=bounds.expand(targets[i])
+    var padding:=.12+peak_speed*h+tether_radius
+    bounds=bounds.grow(padding)
+    for collider in colliders:
+        var center:Vector3=collider.center
+        if collider.kind=="plane":
+            var normal:Vector3=collider.normal
+            if (bounds.get_center()-center).dot(normal)>bounds.size.dot(normal.abs())*.5:continue
+            for i in position.size():
+                if (position[i]-center).dot(normal)<padding or (not targets.is_empty() and (targets[i]-center).dot(normal)<padding):nearby[i].append(collider)
+            continue
+        var radius:float=collider.radius
+        if not bounds.grow(radius).has_point(center):continue
+        var range_sq:=(radius+padding)*(radius+padding)
+        for i in position.size():
+            if position[i].distance_squared_to(center)<range_sq or (not targets.is_empty() and targets[i].distance_squared_to(center)<range_sq):nearby[i].append(collider)
     var damp:=exp(-material.damping*h)
     for i in position.size():
         if pins.has(i):position[i]=pins[i];velocity[i]=Vector3.ZERO;continue
         velocity[i]=velocity[i]*damp+Vector3.DOWN*9.81*h
         position[i]+=velocity[i]*h
-    for e in edges:e[4]=0.
+    var stretch_alpha:float=material.stretch/(h*h)
+    var bend_alpha:float=material.bend/(h*h)
+    for j in edges.size():
+        var e:Array=edges[j]
+        e[4]=0.
+        lengths[j]=targets[e[0]].distance_to(targets[e[1]]) if not targets.is_empty() else e[2]
     if not hold.is_empty():hold.lambda=Vector3.ZERO
     for pass_ in iterations:
         if not hold.is_empty():solve_hold(h)
-        for e in edges:
+        for j in edges.size():
+            var e:Array=edges[j]
             var a:int=e[0];var b:int=e[1]
             var delta:=position[b]-position[a];var length_:=delta.length()
             if length_<.000001:continue
-            var rest_length:float=targets[a].distance_to(targets[b]) if not targets.is_empty() else e[2]
-            var alpha:float=(material.bend if e[3] else material.stretch)/(h*h)
+            var rest_length:=lengths[j]
+            var alpha:=bend_alpha if e[3] else stretch_alpha
             var w:=inverse_mass[a]+inverse_mass[b]
             if w<=0.:continue
             var dl:=(-(length_-rest_length)-alpha*float(e[4]))/(w+alpha)
@@ -100,7 +138,7 @@ func step(h:float,colliders:Array=[])->void:
                 if not p.is_equal_approx(position[i]):contacts+=1;position[i]=p
     peak_speed=0.
     for i in position.size():
-        var v:Vector3=(position[i]-before[i])/h
+        var v:Vector3=(position[i]-previous[i])/h
         for collider in nearby[i]:
             var p:=project(position[i],collider,material.thickness+.0002)
             var normal:Vector3=p-position[i]
@@ -113,17 +151,17 @@ func step(h:float,colliders:Array=[])->void:
     quiet_steps=quiet_steps+1 if peak_speed<.012 and hold.is_empty() else 0
     sleeping=quiet_steps>120 and targets.is_empty()
 func solve_hold(h:float)->void:
-    var current:=Vector3.ZERO;var weight:=0.
-    for j in 3:
-        var i:=triangles[int(hold.face)+j];var b:float=hold.bary[j]
-        current+=position[i]*b;weight+=inverse_mass[i]*b*b
+    var ids:PackedInt32Array=hold.ids
+    var weights:PackedFloat32Array=hold.weights
+    var current:=grip_position(ids,weights)
+    var weight:=0.
+    for j in ids.size():weight+=inverse_mass[ids[j]]*weights[j]*weights[j]
     var alpha:=.0003/(h*h)
     var delta:Vector3=(Vector3(hold.goal)-current-alpha*Vector3(hold.lambda))/(weight+alpha)
     var next:Vector3=(Vector3(hold.lambda)+delta).limit_length(material.grab_force*h*h)
     delta=next-Vector3(hold.lambda);hold.lambda=next
-    for j in 3:
-        var i:=triangles[int(hold.face)+j]
-        position[i]+=delta*inverse_mass[i]*float(hold.bary[j])
+    for j in ids.size():
+        position[ids[j]]+=delta*inverse_mass[ids[j]]*weights[j]
 static func project(p:Vector3,c:Dictionary,thickness:float)->Vector3:
     if c.kind=="plane":
         var signed:float=(p-Vector3(c.center)).dot(c.normal)
@@ -142,7 +180,7 @@ static func project(p:Vector3,c:Dictionary,thickness:float)->Vector3:
         if absf(local.x)<half.x and absf(local.y)<half.y and absf(local.z)<half.z:
             var depth:=half-local.abs();var axis:=depth.min_axis_index()
             projected[axis]=(1. if local[axis]>=0 else -1.)*half[axis]
-    return c.transform*projected
+    return p if projected==local else c.transform*projected
 func max_strain()->float:
     var maximum:=0.
     for e in edges:

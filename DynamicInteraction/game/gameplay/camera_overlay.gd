@@ -15,5 +15,5 @@ func reset()->void:
     zoom=2.62
     target=Vector3(0.,1.04,0.)
 func orbit(delta:Vector2)->void:
-    yaw-=delta.x*.3
+    yaw=wrapf(yaw-delta.x*.3,-180.,180.)
     pitch=clampf(pitch+delta.y*.25,-65.,65.)

@@ -68,7 +68,7 @@ func constrain_axis(ray:Vector3,side:float)->Vector3:
   return Vector3.DOWN*cos(deg_to_rad(raise))+horizontal*sin(deg_to_rad(raise))
  return direction
 
-func solve_arm(sk:Skeleton3D,i:int,contacts:Array,dt:float,influence:float,chain:=Vector3i(-1,-1,-1))->void:
+func solve_arm(sk:Skeleton3D,i:int,contacts:Array,dt:float,influence:float,chain:=Vector3i(-1,-1,-1),torso:=Basis.IDENTITY,anatomical_pole:=Vector3.ZERO)->void:
  var suffix:="L" if i==0 else "R"
  var sign_:=-1. if i==0 else 1.
  var upper:=chain.x if chain.x>=0 else sk.find_bone("Upper"+suffix)
@@ -97,7 +97,7 @@ func solve_arm(sk:Skeleton3D,i:int,contacts:Array,dt:float,influence:float,chain
  var low:=reach_for_bend(l1,l2,max_bend)
  var high:=reach_for_bend(l1,l2,min_bend)
  var raw:=requested-a
- var direction:=constrain_axis(raw,sign_)
+ var direction:=torso*constrain_axis(torso.transposed()*raw,sign_)
  var admissible:=direction*clampf(raw.length(),low,high)
  var goal:=a+admissible-idle
  var k:=stiffness*(1. if active else recovery)
@@ -108,7 +108,7 @@ func solve_arm(sk:Skeleton3D,i:int,contacts:Array,dt:float,influence:float,chain
   offsets[i]+=Vector3(arm_speed[i])*h
   remaining-=h
  var ray:=idle+Vector3(offsets[i])-a
- var axis:=constrain_axis(ray,sign_)
+ var axis:=torso*constrain_axis(torso.transposed()*ray,sign_)
  var previous:Vector3=solved_axis[i]
  if not previous.is_zero_approx():
   var change:=previous.angle_to(axis)
@@ -123,6 +123,7 @@ func solve_arm(sk:Skeleton3D,i:int,contacts:Array,dt:float,influence:float,chain
  # para impedir que o cotovelo vire para trás ao cruzar a altura do ombro.
  var up:=smoothstep(-.3,.7,axis.y)
  var pole_candidate:=Vector3(sign_*.78,-.10,lerpf(-.66,-.27,up))
+ if not anatomical_pole.is_zero_approx():pole_candidate=torso*(anatomical_pole*Vector3(sign_,1.,1.))
  var projected:=pole_candidate.slide(axis)
  var pole_before:=Vector3(solved_pole[i]).slide(axis).normalized()
  if projected.length_squared()<.06:

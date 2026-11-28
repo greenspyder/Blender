@@ -12,6 +12,10 @@ var physics_us:=0
 var render_us:=0
 var colliders:Array=[]
 var active:=true
+var accessory_enabled:=true
+var feedback:=""
+var body_shapes:Array=[]
+var ground:Node3D
 var hold_plane:=Plane()
 var hold_origin:=Vector3.ZERO
 var selected_accessory:=false
@@ -22,6 +26,9 @@ func configure(owner,picker)->void:
     game=owner;camera=game.camera
     add_child(accessory);accessory.build(Vector3(.82,1.32,.05)*game.core.leg,game.core.leg)
     worn.build(picker,game.profile,game.core.leg)
+    ground=game.get_node("Ground")
+    for body in game.core.bodies.values():cache_shape(body.get_child(0))
+    cache_shape(game.seat.get_child(0))
     set_quality(quality)
     load_custom()
     set_profile(material)
@@ -31,24 +38,40 @@ func set_profile(value:Resource)->void:
 func set_quality(index:int)->void:
     quality=clampi(index,0,2)
     accessory.solver.iterations=[3,4,6][quality];worn.solver.iterations=[2,3,4][quality]
+func cache_shape(shape:CollisionShape3D)->void:
+    var geometry:=shape.shape
+    var c:={"source":shape}
+    if geometry is CapsuleShape3D:
+        c.merge({"kind":"capsule","half":geometry.height*.5-geometry.radius,"r":geometry.radius,"radius":geometry.height*.5+.04})
+    elif geometry is SphereShape3D:
+        c.merge({"kind":"sphere","r":geometry.radius,"radius":geometry.radius+.04})
+    elif geometry is BoxShape3D:
+        c.merge({"kind":"box","half":geometry.size*.5,"radius":geometry.size.length()*.5+.04})
+    else:return
+    body_shapes.append(c)
+
 func collision_shapes()->Array:
-    var result:Array=[{"kind":"plane","center":game.get_node("Ground").global_position,"normal":game.get_node("Ground").global_basis.y}]
-    var bodies:Array=game.core.bodies.values()
-    if game.seat.visible:bodies.append(game.seat)
-    for body in bodies:
-        var shape:CollisionShape3D=body.get_child(0);var s:Shape3D=shape.shape
-        var t:=shape.global_transform
-        var c:={"center":t.origin,"transform":t,"inverse":t.affine_inverse(),"radius":0.}
-        if s is CapsuleShape3D:c.merge({"kind":"capsule","half":s.height*.5-s.radius,"r":s.radius});c.radius=s.height*.5+.04
-        elif s is SphereShape3D:c.merge({"kind":"sphere","r":s.radius});c.radius=s.radius+.04
-        elif s is BoxShape3D:c.merge({"kind":"box","half":s.size*.5});c.radius=s.size.length()*.5+.04
-        else:continue
+    var result:Array=[{"kind":"plane","center":ground.global_position,"normal":ground.global_basis.y}]
+    for c in body_shapes:
+        var source:CollisionShape3D=c.source
+        if source.disabled:continue
+        var frame:=source.global_transform
+        c.center=frame.origin
+        c.transform=frame
+        c.inverse=frame.affine_inverse()
         result.append(c)
     return result
+
+func set_accessory_enabled(value:bool)->void:
+    if not value and selected_accessory:release()
+    accessory_enabled=value
+    accessory.visible=value
+    if value:accessory.solver.wake()
+
 func step(dt:float)->void:
     if not active:return
     var start:=Time.get_ticks_usec();colliders=collision_shapes()
-    if accessory.solver.sleeping:
+    if accessory_enabled and accessory.solver.sleeping:
         var bounds:=AABB(accessory.solver.position[0],Vector3.ZERO)
         for p in accessory.solver.position:bounds=bounds.expand(p)
         for c in colliders:
@@ -56,7 +79,7 @@ func step(dt:float)->void:
     # The host retains 120 Hz; smaller substeps only if a larger dt is supplied.
     var count_:=maxi(1,ceili(dt*120.-.00001))
     for i in count_:
-        accessory.solver.step(dt/count_,colliders)
+        if accessory_enabled:accessory.solver.step(dt/count_,colliders)
         worn.step(dt/count_,colliders)
     physics_us=Time.get_ticks_usec()-start
 func _process(dt:float)->void:
@@ -65,38 +88,42 @@ func _process(dt:float)->void:
     if render_clock<1./[15.,24.,30.][quality]:return
     render_clock=0.
     var start:=Time.get_ticks_usec()
-    if not accessory.solver.sleeping:accessory.render()
+    if accessory_enabled and not accessory.solver.sleeping:accessory.render()
     worn.render()
     render_us=Time.get_ticks_usec()-start
 func begin(pixel:Vector2,garment_hit:Dictionary)->bool:
-    var hit:=accessory.pick(camera,pixel)
+    var hit:=accessory.pick(camera,pixel) if accessory_enabled else {}
     var cloth_distance:float=INF if garment_hit.is_empty() else camera.project_ray_origin(pixel).distance_to(garment_hit.p)
     if not hit.is_empty() and hit.distance<cloth_distance:
+        feedback="Tecido independente"
         selected_accessory=true;hold_origin=hit.point;hold_plane=Plane(camera.global_basis.z,hold_origin)
         accessory.solver.begin_hold(hit.face,hit.bary,hit.point)
         return true
     if garment_hit.is_empty():return false
-    for record in worn.records:
-        if record.surface!=garment_hit.surface:continue
-        var vertex:int=record.surface.indices[garment_hit.face]
-        var particle:int=record.mapping[vertex]
-        # A physical triangle attached to the picked cluster, shared with future hand tools.
-        var f:=worn.solver.triangles.find(particle)
-        if f<0:return false
-        var bary:=Vector3.ZERO;bary[f%3]=1.
-        selected_worn=true;hold_origin=garment_hit.p;hold_plane=Plane(camera.global_basis.z,hold_origin)
-        worn.solver.begin_hold(f-f%3,bary,hold_origin)
-        return true
-    return false
+    if not worn.begin_grip(garment_hit):return false
+    selected_worn=true
+    hold_origin=garment_hit.p
+    hold_plane=Plane(camera.global_basis.z,hold_origin)
+    feedback=worn.held_region.label if worn.held_region else "Tecido"
+    return true
 func drag(pixel:Vector2)->void:
     var target=hold_plane.intersects_ray(camera.project_ray_origin(pixel),camera.project_ray_normal(pixel))
     if target==null:return
-    var solver=accessory.solver if selected_accessory else worn.solver
-    if not solver.hold.is_empty():solver.hold.goal=hold_origin+(target-hold_origin).limit_length(game.core.leg*.55)
-func release()->void:
-    accessory.solver.release();worn.solver.release();selected_accessory=false;selected_worn=false
+    if selected_worn:worn.move_grip(target-hold_origin)
+    elif selected_accessory:accessory.solver.hold.goal=hold_origin+(target-hold_origin).limit_length(game.core.leg*.55)
+func release(commit:=true)->void:
+    if selected_accessory:accessory.solver.release()
+    if selected_worn:worn.release_grip(commit)
+    selected_accessory=false
+    selected_worn=false
+    feedback=""
 func reset()->void:
-    release();worn.reset();accessory.solver.position=accessory.solver.rest.duplicate();accessory.solver.velocity.fill(Vector3.ZERO)
+    release()
+    worn.reset()
+    accessory.solver.release()
+    accessory.solver.position=accessory.solver.rest.duplicate()
+    accessory.solver.velocity.fill(Vector3.ZERO)
+    if accessory_enabled:accessory.render()
 func save_custom()->Error:
     var cfg:=ConfigFile.new()
     for field in Profile.FIELDS:cfg.set_value("cloth",field,material.get(field))

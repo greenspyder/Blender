@@ -1,0 +1,11 @@
+importação do editor · PASS · Godot v4.7.2.stable.official.ed1daf0bf
+inicialização em gameplay/main.tscn · PASS · Godot v4.7.2.stable.official.ed1daf0bf
+agachamento e rig · PASS · Godot v4.7.2.stable.official.ed1daf0bf
+Pesos distais 155 · erro máximo 0.00001525878906
+Agachar · descida 23.8 cm · retorno 10.0 mm · joelho 42.3→99.9° · pés 405/405 · deriva 8.3 mm · junta 0.4 mm
+Movimento · []
+ajuste de vestuário · PASS · Godot v4.7.2.stable.official.ed1daf0bf
+Alça · malha 7.65 mm · guia 7.65 mm · após soltar 3.52 mm · costura 0.000 mm · diferença de leitura 0.000 mm
+Cós · malha 15.90 mm · guia 15.90 mm · após soltar 15.89 mm · costura 0.000 mm · diferença de leitura 0.000 mm
+Malhas em atualização parcial 0/5 · headless
+Ajustes físicos · []

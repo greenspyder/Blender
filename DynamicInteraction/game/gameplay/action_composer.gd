@@ -1,4 +1,5 @@
 extends RefCounted
+const GroundMotion=preload("res://rig/balance_lab.gd")
 const Library=preload("res://gameplay/action_library.gd")
 var base:=0
 var actions:Dictionary={}
@@ -12,7 +13,7 @@ func select_base(index:int)->void:
         if index in Library.ACTIONS[key].blocked:actions[key].enabled=false
 func enable(key:String,value:bool)->bool:
     if value and base in Library.ACTIONS[key].blocked:
-        blocked_reason="Esta ação exige uma postura sem caminhada."
+        blocked_reason="%s indisponível na base %s." % [Library.ACTIONS[key].name, Library.BASES[base]]
         return false
     if value and actions[key].phase>=TAU:actions[key].phase=0.
     actions[key].enabled=value
@@ -23,7 +24,7 @@ func advance(dt:float)->void:
         var a:Dictionary=actions[key]
         a.weight=move_toward(a.weight,1. if a.enabled else 0.,dt*3.)
         if a.enabled and not a.paused:
-            a.phase+=dt*a.speed*TAU*.35
+            a.phase+=dt*a.speed*(2. if key=="squat" else TAU*.35)
             if a.phase>=TAU:
                 if a.repeat:a.phase=fmod(a.phase,TAU)
                 else:
@@ -40,7 +41,16 @@ func active_text()->String:
     return " · ".join(names)
 # Camadas aditivas por papel semântico; nunca escrevem no esqueleto físico.
 func offsets()->Dictionary:
+    var blending:=false
+    for a in actions.values():
+        if a.weight>0.:
+            blending=true
+            break
+    if not blending:return {}
+    var squat:Dictionary=actions.squat
+    var depth:=GroundMotion.squat_depth(squat.phase)*float(squat.weight)*float(squat.intensity)*float(squat.amplitude)
     var candidates:={
+        "squat":{"pelvis":Vector3.DOWN*depth},
         "flex":{"pelvis":Vector3(0.,-absf(value("flex"))*(.045 if base==1 else .09),0.),"lumbar":Vector3(value("flex")*7.,0.,0.)},
         "sway":{"pelvis":Vector3(value("sway")*.035,0.,0.),"chest":Vector3(0.,0.,value("sway")*5.)},
         "head":{"head":Vector3(0.,value("head")*24.,0.)},
@@ -53,8 +63,9 @@ func offsets()->Dictionary:
 
 func apply(request:Dictionary,length_:float)->void:
     var additions:=offsets()
+    if additions.is_empty():return
     request.travel+=Vector3(additions.pelvis)*length_
     for role in ["lumbar","chest"]:request[role]+=Vector3(additions[role])
-    request.head=additions.head
+    request.head+=Vector3(additions.head)
     for side in ["l","r"]:
         request["arm_"+side]+=Vector3(additions["upper_"+side])*1.92

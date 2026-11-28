@@ -1,0 +1,9 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+WARNING: Could not set V-Sync mode, as changing V-Sync mode is not supported by the graphics driver.
+     at: set_use_vsync (platform/linuxbsd/x11/gl_manager_x11.cpp:372)
+OpenGL API 4.5 (Core Profile) Mesa 25.0.7-2+deb13u1 - Compatibility - Using Device: Mesa - llvmpipe (LLVM 19.1.7, 256 bits)
+
+Alça · malha 7.65 mm · guia 7.65 mm · após soltar 3.52 mm · costura 0.000 mm · diferença de leitura 0.000 mm
+Cós · malha 15.90 mm · guia 15.90 mm · após soltar 15.89 mm · costura 0.000 mm · diferença de leitura 0.000 mm
+Malhas em atualização parcial 5/5 · X11
+Ajustes físicos · []
