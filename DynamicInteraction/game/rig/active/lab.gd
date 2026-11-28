@@ -546,6 +546,7 @@ func tick_reference(dt:float)->void:
         $Model.position=Vector3.ZERO
         var target:=pose_draft if mode==ReferenceMode.CUSTOM else free_pose
         pose_reference.apply(compose_custom_reference(target))
+        if mode==ReferenceMode.CUSTOM:fit_custom_feet()
     if not transition_from.is_empty():
         transition_elapsed+=dt
         var fraction:=clampf(transition_elapsed/transition_duration,0.,1.)
@@ -574,3 +575,6 @@ func custom_support()->float:
 
 func compose_custom_reference(target:Dictionary)->Dictionary:
     return target
+
+func fit_custom_feet()->void:
+    pass

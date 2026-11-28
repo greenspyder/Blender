@@ -95,7 +95,7 @@ func bend_knee(roles:Array,degrees:float)->void:
  var angle:=deg_to_rad(degrees)
  arms.align(sk,bones[roles[1]],pose(roles[2]).origin-knee,axis*cos(angle)-pole*sin(angle))
 
-func solve_leg(side:String)->void:
+func solve_leg(side:String,relative_goal:Variant=null)->void:
  var hip_role:="thigh_"+side
  var shin_role:="shin_"+side
  var foot_role:="foot_"+side
@@ -110,8 +110,8 @@ func solve_leg(side:String)->void:
  var target:=rest_foot.origin+floor_offset
  var sole_basis:=rest_foot.basis
  var desired_sole:Vector3=rest_foot*profile.sole_offset+floor_offset
- if foot_goals.has(side):
-  var goal_pose:Transform3D=foot_goals[side]
+ if relative_goal!=null or foot_goals.has(side):
+  var goal_pose:Transform3D=relative_goal if relative_goal!=null else foot_goals[side]
   sole_basis=goal_pose.basis
   desired_sole=goal_pose.origin
   target=desired_sole-sole_basis*profile.sole_offset

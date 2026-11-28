@@ -27,7 +27,7 @@ var base_paused:=false
 func _ready()->void:
     super()
     if not ready_to_pose:return
-    get_window().title="ROSE · Foundation Refinement"
+    get_window().title="ROSE · Adaptive Actions & Cloth Integration"
     for key in draw:draw[key]=false
     draw_reference=false
     display_forces=false
@@ -70,6 +70,7 @@ func update_camera()->void:
 
 func select_base(index:int)->void:
     if ready_to_pose:start_pose_transition()
+    observation_time=0.
     composer.select_base(index)
     if index==5:
         select_reference_mode(ReferenceMode.CUSTOM)
@@ -84,24 +85,119 @@ func adjust_reference(dt:float)->void:
     if composer.base==3:
         preview.lumbar=Vector3(17.,0.,0.)
         preview.chest=Vector3(12.,0.,0.)
+    var base_height:float=preview.travel.y
     composer.apply(preview,balance.length_scale)
+    last_action_height=(preview.travel.y-base_height)/balance.length_scale
+
+var observation_time:=0.
+var custom_soles:Dictionary={}
+var custom_ik_weight:=0.
+var last_action_height:=0.
+
+func observe_actions()->void:
+    var leg:float=core.leg
+    var pelvis:Vector3=core.physical_pose("pelvis").origin
+    var feet:=0
+    var down:=1.
+    var up:=1.
+    for side in ["l","r"]:
+        var foot_role:String="foot_"+side
+        if not foot_role in core.active_support:continue
+        feet+=1
+        var hip:Vector3=core.physical_pose("thigh_"+side).origin
+        var knee:Vector3=core.physical_pose("shin_"+side).origin
+        var foot:Vector3=core.physical_pose(foot_role).origin
+        var a:=hip.distance_to(knee)
+        var b:=knee.distance_to(foot)
+        var horizontal:=Vector2(hip.x-foot.x,hip.z-foot.z).length_squared()
+        var limits:Array=pose_reference.limits("shin_"+side)
+        var max_angle:=maxf(absf(limits[0].x),absf(limits[1].x))
+        var minimum:=a*a+b*b+2.*a*b*cos(deg_to_rad(max_angle))
+        var base_height:=hip.y-foot.y-last_action_height*leg
+        down=minf(down,(base_height-sqrt(maxf(0.,minimum-horizontal)))/leg)
+        up=minf(up,(sqrt(maxf(0.,(a+b)*(a+b)-horizontal))-base_height)/leg)
+    var outline:=core.support_outline(seat,true)
+    var outside:=0.
+    if outline.size()>=3:
+        var hull:=Geometry2D.convex_hull(outline)
+        var center:=Vector2(core.com.x,core.com.z)
+        if not Geometry2D.is_point_in_polygon(center,hull):
+            outside=INF
+            for i in range(1,hull.size()):outside=minf(outside,center.distance_to(Geometry2D.get_closest_point_to_segment(center,hull[i-1],hull[i]))/leg)
+    var seated:=false
+    if seat.visible:
+        var relative:=seat.to_local(pelvis)/leg
+        seated=core.bodies.pelvis.support_body==seat or (absf(relative.x)<.43 and absf(relative.z)<.37 and relative.y<.42)
+        if seated:
+            var head:Vector3=core.bodies.head.global_position
+            var query:=PhysicsRayQueryParameters3D.create(head,head+Vector3.UP*leg*.32,profile.ground_mask)
+            var ceiling:=get_world_3d().direct_space_state.intersect_ray(query)
+            if not ceiling.is_empty():up=minf(up,maxf(0.,(Vector3(ceiling.position).y-head.y)/leg-.12))
+    var upright:float=(core.physical_pose("chest").origin-pelvis).normalized().dot(Vector3.UP)
+    var authority:float=muscles.state_strength[core.state]
+    if core.state==4:authority*=core.recovery_phase
+    composer.context={"feet":feet,"seat":seated,"authority":authority,"upright":upright,"outside":outside,"down":maxf(0.,down),"up":maxf(0.,up),"free":mode==ReferenceMode.FREE}
 
 func tick_reference(dt:float)->void:
+    observation_time-=dt
+    if observation_time<=0.:
+        observe_actions()
+        observation_time=.05
     composer.advance(dt)
     super(dt)
 
 func compose_custom_reference(target:Dictionary)->Dictionary:
+    custom_soles.clear()
+    custom_ik_weight=0.
     if mode!=ReferenceMode.CUSTOM:return target
     var additions:=composer.offsets()
-    if additions.is_empty():return target
+    if additions.is_empty():
+        last_action_height=0.
+        return target
     var result:=target.duplicate(true)
-    additions.erase("pelvis") # Na pose salva os apoios e a altura permanecem definidos pelo usuário.
+    var travel:Vector3=additions.get("pelvis",Vector3.ZERO)
+    last_action_height=travel.y
+    if travel.length_squared()>.00000001:
+        pose_reference.apply(target)
+        for side in ["l","r"]:
+            if not "foot_"+side in core.active_support:continue
+            var foot:=solver.pose("foot_"+side)
+            custom_soles[side]=Transform3D(foot.basis,foot*profile.sole_offset)
+        result.travel=(Vector3(target.travel)+travel).clamp(Pose.TRAVEL_MIN,Pose.TRAVEL_MAX)
+        custom_ik_weight=smoothstep(0.,.04,travel.length())
     for role in additions:
-        result.angles[role]=pose_reference.clamp_angles(role,result.angles[role]+additions[role])
+        if role!="pelvis":result.angles[role]=pose_reference.clamp_angles(role,result.angles[role]+additions[role])
+    return result
+
+func fit_custom_feet()->void:
+    for side in custom_soles:
+        var ids:Array=[solver.bones["thigh_"+side],solver.bones["shin_"+side],solver.bones["foot_"+side]]
+        var authored:Array[Quaternion]=[]
+        for id in ids:authored.append(sk.get_bone_pose_rotation(id))
+        solver.solve_leg(side,custom_soles[side])
+        for i in ids.size():
+            var id:int=ids[i]
+            sk.set_bone_pose_rotation(id,authored[i].slerp(sk.get_bone_pose_rotation(id),custom_ik_weight))
+
+func request_action(key:String,enabled:bool,parameters:Dictionary={})->Dictionary:
+    if not composer.actions.has(key):return {"accepted":false,"reason":"Ação desconhecida."}
+    var before:Dictionary=composer.actions[key].duplicate()
+    for field in parameters:
+        if not composer.set_parameter(key,field,parameters[field]):
+            composer.actions[key]=before
+            return {"accepted":false,"reason":"Parâmetro inválido: "+str(field)}
+    var accepted:=composer.enable(key,enabled)
+    if not accepted:composer.actions[key]=before
+    return {"accepted":accepted,"reason":composer.blocked_reason}
+
+func action_state()->Dictionary:
+    var result:=composer.snapshot()
+    result.transition={"active":not transition_from.is_empty(),"progress":clampf(transition_elapsed/maxf(.001,transition_duration),0.,1.) if not transition_from.is_empty() else 1.}
     return result
 
 func select_reference_mode(value:int)->void:
     super(value)
+    observation_time=0.
     move_menu.hide()
     if value==ReferenceMode.CUSTOM:composer.select_base(5)
     elif value==ReferenceMode.AUTOMATIC and composer.base==5:composer.base=1 if automatic_movement==6 else (4 if automatic_movement==1 else 0)
@@ -153,6 +249,7 @@ func _physics_process(dt:float)->void:
     interface.active_list.text="Ativas: "+active_names if not active_names.is_empty() else "Nenhuma ação complementar ativa"
     readout.visible=performance_visible
     if interface.action_widgets.enabled.button_pressed!=composer.actions[interface.chosen_action].enabled:interface.refresh_actions()
+    interface.refresh_action_reason()
     if interface.camera_box.is_visible_in_tree():interface.sync_camera()
 
 func set_interaction(index:int)->void:

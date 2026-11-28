@@ -128,8 +128,8 @@ func build(_unused:VBoxContainer)->void:
         actions.add_child(check)
         action_widgets[key]=check
         check.toggled.connect(func(v):
-            if key=="enabled":game.composer.enable(chosen_action,v)
-            else:game.composer.actions[chosen_action][key]=v
+            if key=="enabled":game.request_action(chosen_action,v)
+            else:game.composer.set_parameter(chosen_action,key,v)
             refresh_actions())
     for entry in [["intensity","Intensidade",0.,1.],["amplitude","Amplitude",0.,1.],["speed","Ritmo",.1,3.]]:
         var key:String=entry[0]
@@ -142,8 +142,8 @@ func build(_unused:VBoxContainer)->void:
         actions.add_child(slider)
         action_widgets[key]=slider
         action_widgets[key+"_label"]=caption
-        slider.value_changed.connect(func(v):game.composer.actions[chosen_action][key]=v;refresh_actions())
-    game.button(actions,"Restaurar ritmo 1x",func():game.composer.actions[chosen_action].speed=1.;refresh_actions())
+        slider.value_changed.connect(func(v):game.composer.set_parameter(chosen_action,key,v);refresh_actions())
+    game.button(actions,"Restaurar ritmo 1x",func():game.composer.set_parameter(chosen_action,"speed",1.);refresh_actions())
     refresh_actions()
     var stimuli:=section("Estímulos externos")
     game.parameter(stimuli,"Intensidade",.05,1.,.05,.3,func(v):game.stimulus.intensity=v)
@@ -249,7 +249,10 @@ func refresh_actions()->void:
     for key in ["intensity","amplitude","speed"]:
         action_widgets[key].set_value_no_signal(a[key])
         action_widgets[key+"_label"].text="%s · %.2f%s"%[{"intensity":"Intensidade","amplitude":"Amplitude","speed":"Ritmo"}[key],a[key],"x" if key=="speed" else ""]
-    action_message.text=game.Library.ACTIONS[chosen_action].category+"\n"+game.composer.blocked_reason
+    refresh_action_reason()
+
+func refresh_action_reason()->void:
+    if action_message!=null:action_message.text=game.Library.ACTIONS[chosen_action].category+"\n"+game.composer.reason(chosen_action)
 
 func refresh_customizations()->void:
     muscle_menu.clear()
