@@ -22,7 +22,10 @@ func run()->void:
     check(is_equal_approx(composer.actions.head.phase,head_phase),"pausa individual")
     check(is_equal_approx(composer.actions.flex.phase-flex_phase,.1*2.*TAU*.35),"ritmo individual em execução")
     composer.select_base(4)
-    check(not composer.enable("flex",true) and not composer.actions.flex.enabled,"incompatibilidade com caminhada")
+    composer.context.feet=0
+    check(not composer.enable("flex",true) and not composer.reason("flex").is_empty(),"sem apoio para flexão")
+    composer.context.feet=1
+    check(composer.enable("flex",true),"flexão adaptada quando o pé volta a apoiar")
     composer.actions.head.paused=false
     composer.actions.head.repeat=false
     composer.advance(4.)
